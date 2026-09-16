@@ -47,6 +47,15 @@ def teacher_dashboard(request):
         (d.report.student_id, d.report.lab_work_id): d
         for d in Defense.objects.filter(report__student__in=students)
     }
+    reviews = {
+        (review.report.student_id, review.report.lab_work_id): review
+        for review in ReportReview.objects.filter(report__student__in=students)
+    }
+    review_totals = {}
+    for review in reviews.values():
+        review_totals[review.pk] = sum(
+            float(r.score) for r in CriterionResult.objects.filter(review=review)
+        )
 
     rows = []
     for student in students:
@@ -54,10 +63,14 @@ def teacher_dashboard(request):
         for lab_work in lab_works:
             report = reports.get((student.pk, lab_work.pk))
             defense = defenses.get((student.pk, lab_work.pk))
+            review = reviews.get((student.pk, lab_work.pk))
+            review_total = review_totals.get(review.pk) if review else None
             cells.append({
                 'lab_work': lab_work,
                 'report': report,
                 'defense': defense,
+                'review': review,
+                'review_total': review_total,
             })
         rows.append({'student': student, 'cells': cells})
 
@@ -428,5 +441,43 @@ def review_report(request, student_id, lab_id):
     context = {
         'student': student, 'lab_work': lab_work, 'review': review,
         'criteria_rows': criteria_rows, 'total': total,
+    }
+    return render(request, 'review_report.html', context)
+
+
+@login_required
+def teacher_review_report(request, student_id, lab_id):
+    teacher = request.user.profile.teacher
+    student = get_object_or_404(Student, pk=student_id)
+    lab_work = get_object_or_404(LaboratoryWork, pk=lab_id)
+
+    if not teacher.is_admin and student.subgroup not in teacher.subgroups.all():
+        return redirect('teacher_dashboard')
+
+    report = get_object_or_404(LabReport, student=student, lab_work=lab_work)
+    review = get_object_or_404(ReportReview, report=report)
+
+    criteria = Criterion.objects.all()
+    results = {r.criterion_id: r for r in CriterionResult.objects.filter(review=review)}
+
+    if request.method == 'POST':
+        for criterion in criteria:
+            score = request.POST.get(f'criterion_{criterion.pk}') or 0
+            CriterionResult.objects.update_or_create(
+                review=review, criterion=criterion, defaults={'score': score}
+            )
+        review.comment = request.POST.get('comment', '')
+        review.save()
+        return redirect('teacher_dashboard')
+
+    criteria_rows = [
+        {'criterion': c, 'result': results.get(c.pk)} for c in criteria
+    ]
+    total = sum((r.score or 0) for r in results.values())
+
+    context = {
+        'student': student, 'lab_work': lab_work, 'review': review,
+        'criteria_rows': criteria_rows, 'total': total,
+        'is_teacher_view': True,
     }
     return render(request, 'review_report.html', context)

@@ -22,6 +22,7 @@ urlpatterns = [
     path('teacher/results/', views.results_dashboard, name='results_dashboard'),
     path('teacher/discipline-settings/', views.discipline_settings_view, name='discipline_settings'),
     path('teacher/criteria/', views.criteria_management, name='criteria_management'),
+    path('teacher/review/<int:student_id>/<int:lab_id>/', views.teacher_review_report, name='teacher_review_report'),
     path('student/auto-pass/', views.set_auto_pass_agree, name='set_auto_pass_agree'),
 ]
 
