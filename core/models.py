@@ -15,9 +15,14 @@ class Profile(models.Model):
         primary_key=True,
     )
     role = models.CharField(max_length=20, choices=ROLE_CHOICES)
+    patronymic = models.CharField(max_length=100, blank=True, default='')
 
     def __str__(self):
         return f"{self.user.username} ({self.get_role_display()})"
+
+    def full_name(self):
+        parts = [self.user.last_name, self.user.first_name, self.patronymic]
+        return ' '.join(p for p in parts if p) or self.user.username
 
 
 class Teacher(models.Model):
@@ -25,7 +30,7 @@ class Teacher(models.Model):
     is_admin = models.BooleanField(default=False)
 
     def __str__(self):
-        return self.profile.user.get_full_name() or self.profile.user.username
+        return self.profile.full_name()
 
 
 class Subgroup(models.Model):
@@ -40,7 +45,7 @@ class Assistant(models.Model):
     subgroup = models.ForeignKey(Subgroup, on_delete=models.CASCADE, related_name='assistants')
 
     def __str__(self):
-        return self.profile.user.get_full_name() or self.profile.user.username
+        return self.profile.full_name()
 
 
 class Student(models.Model):
@@ -48,7 +53,7 @@ class Student(models.Model):
     subgroup = models.ForeignKey(Subgroup, on_delete=models.CASCADE, related_name='students')
 
     def __str__(self):
-        return self.profile.user.get_full_name() or self.profile.user.username
+        return self.profile.full_name()
 
 class LaboratoryWork(models.Model):
     title = models.CharField(max_length=100, unique=True)

@@ -1,17 +1,35 @@
 from datetime import date
+from django.contrib.auth import get_user_model, logout
 from django.contrib.auth.decorators import login_required
+from django.db import IntegrityError, transaction
 from django.db.models import ProtectedError
 from django.shortcuts import render, redirect, get_object_or_404
 
 from .models import (
     LaboratoryWork, LabReport, Student, Criterion, ReportReview, CriterionResult, Defense,
-    Attendance, SickLeave, DisciplineResult, DisciplineSettings, Subgroup,
+    Attendance, SickLeave, DisciplineResult, DisciplineSettings, Subgroup, Profile, Teacher, Assistant,
 )
 from .grading import compute_student_summary, compute_report_details, compute_defense_details
+
+User = get_user_model()
 
 
 def _teacher_can_edit_subgroup(teacher, subgroup):
     return teacher.is_admin or (subgroup is not None and subgroup.teacher_id == teacher.pk)
+
+
+def _require_admin(request):
+    """Возвращает Teacher, если пользователь — преподаватель-администратор, иначе None."""
+    teacher = getattr(request.user.profile, 'teacher', None)
+    if teacher and teacher.is_admin:
+        return teacher
+    return None
+
+
+def logout_view(request):
+    """Разлогинивает пользователя и по GET, и по POST (стандартный LogoutView Django принимает только POST)."""
+    logout(request)
+    return redirect('home')
 
 
 def _is_protected_by_confirmed_sick_leave(student, lesson_date):
@@ -35,6 +53,280 @@ def login_redirect_view(request):
         return redirect('assistant_dashboard')
 
     return redirect('admin:index')
+
+
+@login_required
+def manage_subgroups(request):
+    admin_teacher = _require_admin(request)
+    if not admin_teacher:
+        return redirect('teacher_dashboard')
+
+    error = None
+    if request.method == 'POST':
+        action = request.POST.get('action')
+
+        if action == 'create':
+            name = request.POST.get('subgroup_name', '').strip()
+            teacher_id = request.POST.get('teacher_id')
+            if not name:
+                error = 'Укажите название подгруппы.'
+            elif not teacher_id:
+                error = 'Выберите преподавателя, ведущего подгруппу.'
+            else:
+                try:
+                    Subgroup.objects.create(subgroup_name=name, teacher_id=teacher_id)
+                    return redirect('manage_subgroups')
+                except IntegrityError:
+                    error = 'Подгруппа с таким названием уже существует.'
+
+        elif action == 'delete':
+            subgroup = get_object_or_404(Subgroup, pk=request.POST.get('subgroup_id'))
+            if subgroup.students.exists() or subgroup.assistants.exists():
+                error = 'Нельзя удалить подгруппу: в ней ещё есть студенты или ассистенты.'
+            else:
+                subgroup.delete()
+                return redirect('manage_subgroups')
+
+    subgroups = Subgroup.objects.select_related('teacher__profile__user').order_by('subgroup_name')
+    teachers = Teacher.objects.select_related('profile__user').order_by('profile__user__last_name')
+
+    context = {'subgroups': subgroups, 'teachers': teachers, 'error': error}
+    return render(request, 'manage_subgroups.html', context)
+
+
+@login_required
+def edit_subgroup(request, pk):
+    if not _require_admin(request):
+        return redirect('teacher_dashboard')
+
+    subgroup = get_object_or_404(Subgroup, pk=pk)
+    teachers = Teacher.objects.select_related('profile__user').order_by('profile__user__last_name')
+    error = None
+
+    if request.method == 'POST':
+        name = request.POST.get('subgroup_name', '').strip()
+        teacher_id = request.POST.get('teacher_id')
+        if not name or not teacher_id:
+            error = 'Заполните название и преподавателя.'
+        else:
+            try:
+                subgroup.subgroup_name = name
+                subgroup.teacher_id = teacher_id
+                subgroup.save()
+                return redirect('manage_subgroups')
+            except IntegrityError:
+                error = 'Подгруппа с таким названием уже существует.'
+
+    context = {'subgroup': subgroup, 'teachers': teachers, 'error': error}
+    return render(request, 'edit_subgroup.html', context)
+
+
+@login_required
+def manage_users(request):
+    if not _require_admin(request):
+        return redirect('teacher_dashboard')
+
+    error = None
+    if request.method == 'POST' and request.POST.get('action') == 'delete':
+        profile = get_object_or_404(Profile, pk=request.POST.get('profile_id'))
+        if profile.user_id == request.user.id:
+            error = 'Нельзя удалить свою собственную учётную запись.'
+        else:
+            try:
+                profile.user.delete()
+                return redirect('manage_users')
+            except ProtectedError:
+                error = (
+                    'Нельзя удалить пользователя: с ним связаны данные, которые нельзя удалить '
+                    '(например, преподаватель ведёт подгруппу или ассистент уже проверял отчёты).'
+                )
+
+    profiles = Profile.objects.select_related('user').prefetch_related(
+        'teacher__subgroups', 'assistant__subgroup', 'student__subgroup',
+    ).order_by('role', 'user__last_name')
+
+    context = {'profiles': profiles, 'error': error}
+    return render(request, 'manage_users.html', context)
+
+
+@login_required
+def create_user(request):
+    if not _require_admin(request):
+        return redirect('teacher_dashboard')
+
+    subgroups = Subgroup.objects.order_by('subgroup_name')
+    error = None
+
+    if request.method == 'POST':
+        email = request.POST.get('email', '').strip().lower()
+        password = request.POST.get('password', '')
+        last_name = request.POST.get('last_name', '').strip()
+        first_name = request.POST.get('first_name', '').strip()
+        patronymic = request.POST.get('patronymic', '').strip()
+        role = request.POST.get('role')
+        is_admin = request.POST.get('is_admin') == 'on'
+        subgroup_id = request.POST.get('subgroup_id')
+
+        if not email or not password or not last_name or not first_name or not role:
+            error = 'Заполните email, пароль, фамилию, имя и роль.'
+        elif role in ('student', 'assistant') and not subgroup_id:
+            error = 'Выберите подгруппу.'
+        elif User.objects.filter(email__iexact=email).exists():
+            error = 'Пользователь с таким email уже существует.'
+        else:
+            try:
+                with transaction.atomic():
+                    user = User.objects.create_user(
+                        username=email, email=email, password=password,
+                        first_name=first_name, last_name=last_name,
+                    )
+                    profile = Profile.objects.create(user=user, role=role, patronymic=patronymic)
+                    if role == 'teacher':
+                        Teacher.objects.create(profile=profile, is_admin=is_admin)
+                    elif role == 'assistant':
+                        Assistant.objects.create(profile=profile, subgroup_id=subgroup_id)
+                    elif role == 'student':
+                        Student.objects.create(profile=profile, subgroup_id=subgroup_id)
+                return redirect('manage_users')
+            except IntegrityError:
+                error = 'Пользователь с таким email уже существует.'
+
+    context = {'error': error, 'subgroups': subgroups, 'role_choices': Profile.ROLE_CHOICES}
+    return render(request, 'create_user.html', context)
+
+
+@login_required
+def edit_user(request, pk):
+    if not _require_admin(request):
+        return redirect('teacher_dashboard')
+
+    profile = get_object_or_404(Profile, pk=pk)
+    user = profile.user
+    subgroups = Subgroup.objects.order_by('subgroup_name')
+    role_obj = getattr(profile, profile.role, None)
+    error = None
+
+    if request.method == 'POST':
+        last_name = request.POST.get('last_name', '').strip()
+        first_name = request.POST.get('first_name', '').strip()
+        patronymic = request.POST.get('patronymic', '').strip()
+        password = request.POST.get('password', '')
+        subgroup_id = request.POST.get('subgroup_id')
+        is_admin = request.POST.get('is_admin') == 'on'
+
+        if not last_name or not first_name:
+            error = 'Заполните фамилию и имя.'
+        elif profile.role in ('student', 'assistant') and not subgroup_id:
+            error = 'Выберите подгруппу.'
+        else:
+            user.last_name = last_name
+            user.first_name = first_name
+            if password:
+                user.set_password(password)
+            user.save()
+
+            profile.patronymic = patronymic
+            profile.save()
+
+            if profile.role == 'teacher':
+                role_obj.is_admin = is_admin
+                role_obj.save()
+            elif profile.role == 'assistant':
+                role_obj.subgroup_id = subgroup_id
+                role_obj.save()
+            elif profile.role == 'student':
+                role_obj.subgroup_id = subgroup_id
+                role_obj.save()
+
+            return redirect('manage_users')
+
+    context = {
+        'profile': profile, 'user_obj': user, 'role_obj': role_obj,
+        'subgroups': subgroups, 'error': error,
+    }
+    return render(request, 'edit_user.html', context)
+
+
+def _validate_lab_work_fields(title, report_deadline, defense_deadline, report_weight, defense_weight):
+    if not title or not report_deadline or not defense_deadline:
+        return 'Заполните название и оба дедлайна.'
+    try:
+        report_weight_value = float(report_weight)
+        defense_weight_value = float(defense_weight)
+    except (TypeError, ValueError):
+        return 'Введите корректные числа для весов отчёта и защиты.'
+    if report_weight_value <= 0 or defense_weight_value <= 0:
+        return 'Веса отчёта и защиты должны быть больше нуля.'
+    if abs(report_weight_value + defense_weight_value - 1) > 0.001:
+        return 'Сумма веса отчёта и веса защиты должна быть равна 1.'
+    return None
+
+
+@login_required
+def manage_lab_works(request):
+    if not _require_admin(request):
+        return redirect('teacher_dashboard')
+
+    error = None
+    if request.method == 'POST':
+        action = request.POST.get('action')
+
+        if action == 'delete':
+            LaboratoryWork.objects.filter(pk=request.POST.get('lab_id')).delete()
+            return redirect('manage_lab_works')
+
+        title = request.POST.get('title', '').strip()
+        report_deadline = request.POST.get('report_deadline')
+        defense_deadline = request.POST.get('defense_deadline')
+        report_weight = request.POST.get('report_weight')
+        defense_weight = request.POST.get('defense_weight')
+
+        error = _validate_lab_work_fields(title, report_deadline, defense_deadline, report_weight, defense_weight)
+        if not error:
+            try:
+                LaboratoryWork.objects.create(
+                    title=title, report_deadline=report_deadline, defense_deadline=defense_deadline,
+                    report_weight=report_weight, defense_weight=defense_weight,
+                )
+                return redirect('manage_lab_works')
+            except IntegrityError:
+                error = 'Лабораторная работа с таким названием уже существует.'
+
+    lab_works = LaboratoryWork.objects.order_by('report_deadline')
+    context = {'lab_works': lab_works, 'error': error}
+    return render(request, 'manage_lab_works.html', context)
+
+
+@login_required
+def edit_lab_work(request, pk):
+    if not _require_admin(request):
+        return redirect('teacher_dashboard')
+
+    lab_work = get_object_or_404(LaboratoryWork, pk=pk)
+    error = None
+
+    if request.method == 'POST':
+        title = request.POST.get('title', '').strip()
+        report_deadline = request.POST.get('report_deadline')
+        defense_deadline = request.POST.get('defense_deadline')
+        report_weight = request.POST.get('report_weight')
+        defense_weight = request.POST.get('defense_weight')
+
+        error = _validate_lab_work_fields(title, report_deadline, defense_deadline, report_weight, defense_weight)
+        if not error:
+            try:
+                lab_work.title = title
+                lab_work.report_deadline = report_deadline
+                lab_work.defense_deadline = defense_deadline
+                lab_work.report_weight = report_weight
+                lab_work.defense_weight = defense_weight
+                lab_work.save()
+                return redirect('manage_lab_works')
+            except IntegrityError:
+                error = 'Лабораторная работа с таким названием уже существует.'
+
+    context = {'lab_work': lab_work, 'error': error}
+    return render(request, 'edit_lab_work.html', context)
 
 
 @login_required

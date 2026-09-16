@@ -1,11 +1,17 @@
 from django.conf import settings
 from django.conf.urls.static import static
 from django.contrib import admin
+from django.contrib.auth.views import LoginView
 from django.urls import path, include
 from core import views
+from core.forms import EmailAuthenticationForm
 
 urlpatterns = [
     path('admin/', admin.site.urls),
+    path('accounts/login/', LoginView.as_view(
+        template_name='registration/login.html', authentication_form=EmailAuthenticationForm,
+    ), name='login'),
+    path('accounts/logout/', views.logout_view, name='logout'),
     path('accounts/', include('django.contrib.auth.urls')),
     path('', views.login_redirect_view, name='home'),
     path('teacher/', views.teacher_dashboard, name='teacher_dashboard'),
@@ -24,6 +30,13 @@ urlpatterns = [
     path('teacher/criteria/', views.criteria_management, name='criteria_management'),
     path('teacher/review/<int:student_id>/<int:lab_id>/', views.teacher_review_report, name='teacher_review_report'),
     path('student/auto-pass/', views.set_auto_pass_agree, name='set_auto_pass_agree'),
+    path('teacher/admin/subgroups/', views.manage_subgroups, name='manage_subgroups'),
+    path('teacher/admin/subgroups/<int:pk>/edit/', views.edit_subgroup, name='edit_subgroup'),
+    path('teacher/admin/users/', views.manage_users, name='manage_users'),
+    path('teacher/admin/users/create/', views.create_user, name='create_user'),
+    path('teacher/admin/users/<int:pk>/edit/', views.edit_user, name='edit_user'),
+    path('teacher/admin/lab-works/', views.manage_lab_works, name='manage_lab_works'),
+    path('teacher/admin/lab-works/<int:pk>/edit/', views.edit_lab_work, name='edit_lab_work'),
 ]
 
 if settings.DEBUG:

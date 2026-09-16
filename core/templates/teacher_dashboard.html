@@ -16,6 +16,9 @@
             {% if is_admin %}
                 <a href="{% url 'criteria_management' %}" class="btn btn-outline-primary">Критерии</a>
                 <a href="{% url 'discipline_settings' %}" class="btn btn-outline-primary">Настройки</a>
+                <a href="{% url 'manage_lab_works' %}" class="btn btn-outline-primary">Лабораторные работы</a>
+                <a href="{% url 'manage_subgroups' %}" class="btn btn-outline-primary">Подгруппы</a>
+                <a href="{% url 'manage_users' %}" class="btn btn-outline-primary">Пользователи</a>
             {% endif %}
             <a href="{% url 'logout' %}" class="btn btn-outline-secondary">Выйти</a>
         </div>

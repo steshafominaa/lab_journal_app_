@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title>Управление пользователями</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+</head>
+<body>
+<div class="container mt-4" style="max-width: 900px;">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1>Пользователи</h1>
+        <div>
+            <a href="{% url 'create_user' %}" class="btn btn-primary">Добавить пользователя</a>
+            <a href="{% url 'teacher_dashboard' %}" class="btn btn-outline-secondary">К лабораторным</a>
+        </div>
+    </div>
+
+    {% if error %}
+        <div class="alert alert-danger">{{ error }}</div>
+    {% endif %}
+
+    <table class="table table-bordered align-middle">
+        <thead>
+        <tr>
+            <th>ФИО</th>
+            <th>Email</th>
+            <th>Роль</th>
+            <th>Подгруппа / права</th>
+            <th></th>
+        </tr>
+        </thead>
+        <tbody>
+        {% for profile in profiles %}
+            <tr>
+                <td>{{ profile.full_name }}</td>
+                <td>{{ profile.user.email }}</td>
+                <td>{{ profile.get_role_display }}</td>
+                <td>
+                    {% if profile.role == 'teacher' %}
+                        {% if profile.teacher.is_admin %}
+                            <span class="badge bg-danger">администратор</span>
+                        {% endif %}
+                        {% for subgroup in profile.teacher.subgroups.all %}
+                            <span class="badge bg-secondary">{{ subgroup }}</span>
+                        {% empty %}
+                            <span class="text-muted">без подгрупп</span>
+                        {% endfor %}
+                    {% elif profile.role == 'assistant' %}
+                        {{ profile.assistant.subgroup }}
+                    {% elif profile.role == 'student' %}
+                        {{ profile.student.subgroup }}
+                    {% endif %}
+                </td>
+                <td class="text-nowrap">
+                    <a href="{% url 'edit_user' profile.pk %}" class="btn btn-sm btn-outline-primary">Изменить</a>
+                    <form method="post" class="d-inline"
+                          onsubmit="return confirm('Удалить пользователя? Действие необратимо.');">
+                        {% csrf_token %}
+                        <input type="hidden" name="action" value="delete">
+                        <input type="hidden" name="profile_id" value="{{ profile.pk }}">
+                        <button type="submit" class="btn btn-sm btn-outline-danger">Удалить</button>
+                    </form>
+                </td>
+            </tr>
+        {% empty %}
+            <tr>
+                <td colspan="5" class="text-muted">Пользователей пока нет.</td>
+            </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+</div>
+</body>
+</html>

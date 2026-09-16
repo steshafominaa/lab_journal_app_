@@ -135,3 +135,8 @@ MAILERS = {
 
 LOGIN_REDIRECT_URL = 'home'
 LOGOUT_REDIRECT_URL = 'home'
+
+AUTHENTICATION_BACKENDS = [
+    'core.auth_backends.EmailBackend',
+    'django.contrib.auth.backends.ModelBackend',
+]
