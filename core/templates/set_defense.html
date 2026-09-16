@@ -25,6 +25,12 @@
             <label class="form-label">Комментарий</label>
             <textarea name="comment" class="form-control" rows="3">{{ defense.comment|default:"" }}</textarea>
         </div>
+
+        <div class="alert alert-secondary">
+            <div>Штраф за просрочку защиты: <strong>{{ defense_penalty|floatformat:2 }}</strong> балл(ов)</div>
+            <div>Итоговая оценка за защиту (с учётом штрафа): <strong>{{ defense_final_score|floatformat:2 }}</strong></div>
+        </div>
+
         <button type="submit" class="btn btn-primary">Сохранить</button>
         <a href="{% url 'teacher_dashboard' %}" class="btn btn-outline-secondary">Отмена</a>
     </form>
