@@ -18,6 +18,7 @@
             <thead>
             <tr>
                 <th>Студент</th>
+                <th>Подгруппа</th>
                 <th>Средняя за лабы</th>
                 <th>Бонус</th>
                 <th>Автомат доступен</th>
@@ -30,6 +31,7 @@
             {% for row in rows %}
                 <tr>
                     <td>{{ row.student }}</td>
+                    <td>{{ row.student.subgroup }}</td>
                     {% if row.summary %}
                         <td>{{ row.summary.average_lab_score|floatformat:2 }}</td>
                         <td>
@@ -70,7 +72,7 @@
                             {% endif %}
                         </td>
                     {% else %}
-                        <td colspan="6" class="text-muted">Нет лабораторных работ</td>
+                        <td colspan="7" class="text-muted">Нет лабораторных работ</td>
                     {% endif %}
                 </tr>
             {% endfor %}

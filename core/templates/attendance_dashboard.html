@@ -22,6 +22,7 @@
                 <thead>
                 <tr>
                     <th>Студент</th>
+                    <th>Подгруппа</th>
                     {% for lesson_date in lesson_dates %}
                         <th>{{ lesson_date|date:"d.m.Y" }}</th>
                     {% endfor %}
@@ -31,6 +32,7 @@
                 {% for row in rows %}
                     <tr>
                         <td>{{ row.student }}</td>
+                        <td>{{ row.student.subgroup }}</td>
                         {% for cell in row.cells %}
                             <td>
                                 <select name="status_{{ row.student.pk }}_{{ cell.lesson_date|date:'Y-m-d' }}"

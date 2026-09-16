@@ -151,7 +151,10 @@ def set_defense(request, student_id, lab_id):
 @login_required
 def attendance_dashboard(request):
     teacher = request.user.profile.teacher
-    students = Student.objects.filter(subgroup=teacher.subgroups.first())
+    if teacher.is_admin:
+        students = Student.objects.select_related('subgroup')
+    else:
+        students = Student.objects.filter(subgroup__in=teacher.subgroups.all()).select_related('subgroup')
 
     lesson_dates = sorted(set(
         Attendance.objects.filter(student__in=students).values_list('lesson_date', flat=True)
@@ -198,7 +201,10 @@ def attendance_dashboard(request):
 @login_required
 def add_lesson_date(request):
     teacher = request.user.profile.teacher
-    students = Student.objects.filter(subgroup=teacher.subgroups.first())
+    if teacher.is_admin:
+        students = Student.objects.all()
+    else:
+        students = Student.objects.filter(subgroup__in=teacher.subgroups.all())
 
     if request.method == 'POST':
         lesson_date = request.POST.get('lesson_date')
@@ -226,8 +232,11 @@ def add_sick_leave(request):
 @login_required
 def sick_leave_dashboard(request):
     teacher = request.user.profile.teacher
-    students = Student.objects.filter(subgroup=teacher.subgroups.first())
-    sick_leaves = SickLeave.objects.filter(student__in=students).order_by('-pk')
+    if teacher.is_admin:
+        students = Student.objects.select_related('subgroup')
+    else:
+        students = Student.objects.filter(subgroup__in=teacher.subgroups.all()).select_related('subgroup')
+    sick_leaves = SickLeave.objects.filter(student__in=students).select_related('student__subgroup').order_by('-pk')
 
     context = {'sick_leaves': sick_leaves}
     return render(request, 'sick_leave_dashboard.html', context)
@@ -235,7 +244,11 @@ def sick_leave_dashboard(request):
 
 @login_required
 def review_sick_leave(request, sick_leave_id):
+    teacher = request.user.profile.teacher
     sick_leave = get_object_or_404(SickLeave, pk=sick_leave_id)
+
+    if not _teacher_can_edit_subgroup(teacher, sick_leave.student.subgroup):
+        return redirect('sick_leave_dashboard')
 
     if request.method == 'POST':
         sick_leave.start_date = request.POST.get('start_date') or None
@@ -259,7 +272,10 @@ def review_sick_leave(request, sick_leave_id):
 @login_required
 def results_dashboard(request):
     teacher = request.user.profile.teacher
-    students = Student.objects.filter(subgroup=teacher.subgroups.first())
+    if teacher.is_admin:
+        students = Student.objects.select_related('subgroup')
+    else:
+        students = Student.objects.filter(subgroup__in=teacher.subgroups.all()).select_related('subgroup')
 
     if request.method == 'POST':
         for student in students:
