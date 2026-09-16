@@ -16,6 +16,7 @@
         <thead>
         <tr>
             <th>Студент</th>
+            <th>Подгруппа</th>
             <th>Файл</th>
             <th>Период</th>
             <th>Статус</th>
@@ -26,6 +27,7 @@
         {% for sick_leave in sick_leaves %}
             <tr>
                 <td>{{ sick_leave.student }}</td>
+                <td>{{ sick_leave.student.subgroup }}</td>
                 <td><a href="{{ sick_leave.file.url }}" target="_blank">Открыть файл</a></td>
                 <td>
                     {% if sick_leave.start_date and sick_leave.end_date %}
