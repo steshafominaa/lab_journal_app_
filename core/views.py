@@ -5,9 +5,13 @@ from django.shortcuts import render, redirect, get_object_or_404
 
 from .models import (
     LaboratoryWork, LabReport, Student, Criterion, ReportReview, CriterionResult, Defense,
-    Attendance, SickLeave, DisciplineResult, DisciplineSettings,
+    Attendance, SickLeave, DisciplineResult, DisciplineSettings, Subgroup,
 )
-from .grading import compute_student_summary
+from .grading import compute_student_summary, compute_report_details, compute_defense_details
+
+
+def _teacher_can_edit_subgroup(teacher, subgroup):
+    return teacher.is_admin or (subgroup is not None and subgroup.teacher_id == teacher.pk)
 
 
 def _is_protected_by_confirmed_sick_leave(student, lesson_date):
@@ -36,8 +40,9 @@ def login_redirect_view(request):
 @login_required
 def teacher_dashboard(request):
     teacher = request.user.profile.teacher
-    students = Student.objects.filter(subgroup=teacher.subgroups.first())
+    subgroups = Subgroup.objects.all().order_by('subgroup_name')
     lab_works = list(LaboratoryWork.objects.all())
+    students = Student.objects.filter(subgroup__in=subgroups).select_related('subgroup')
 
     reports = {
         (report.student_id, report.lab_work_id): report
@@ -51,32 +56,41 @@ def teacher_dashboard(request):
         (review.report.student_id, review.report.lab_work_id): review
         for review in ReportReview.objects.filter(report__student__in=students)
     }
-    review_totals = {}
-    for review in reviews.values():
-        review_totals[review.pk] = sum(
-            float(r.score) for r in CriterionResult.objects.filter(review=review)
-        )
 
-    rows = []
-    for student in students:
-        cells = []
-        for lab_work in lab_works:
-            report = reports.get((student.pk, lab_work.pk))
-            defense = defenses.get((student.pk, lab_work.pk))
-            review = reviews.get((student.pk, lab_work.pk))
-            review_total = review_totals.get(review.pk) if review else None
-            cells.append({
-                'lab_work': lab_work,
-                'report': report,
-                'defense': defense,
-                'review': review,
-                'review_total': review_total,
-            })
-        rows.append({'student': student, 'cells': cells})
+    subgroup_blocks = []
+    for subgroup in subgroups:
+        subgroup_students = [s for s in students if s.subgroup_id == subgroup.pk]
+        if not subgroup_students:
+            continue
+
+        editable = _teacher_can_edit_subgroup(teacher, subgroup)
+
+        rows = []
+        for student in subgroup_students:
+            cells = []
+            for lab_work in lab_works:
+                report = reports.get((student.pk, lab_work.pk))
+                defense = defenses.get((student.pk, lab_work.pk))
+                review = reviews.get((student.pk, lab_work.pk))
+                cells.append({
+                    'lab_work': lab_work,
+                    'report': report,
+                    'defense': defense,
+                    'review': review,
+                    'report_details': compute_report_details(student, lab_work) if review else None,
+                    'defense_details': compute_defense_details(student, lab_work) if defense else None,
+                })
+            rows.append({'student': student, 'cells': cells})
+
+        subgroup_blocks.append({
+            'subgroup': subgroup,
+            'editable': editable,
+            'rows': rows,
+        })
 
     context = {
         'lab_works': lab_works,
-        'rows': rows,
+        'subgroup_blocks': subgroup_blocks,
         'is_admin': teacher.is_admin,
     }
     return render(request, 'teacher_dashboard.html', context)
@@ -84,9 +98,13 @@ def teacher_dashboard(request):
 
 @login_required
 def set_report_date(request, lab_id):
+    teacher = request.user.profile.teacher
     lab_work = get_object_or_404(LaboratoryWork, pk=lab_id)
     student_id = request.GET.get('student_id') or request.POST.get('student_id')
     student = get_object_or_404(Student, pk=student_id)
+
+    if not _teacher_can_edit_subgroup(teacher, student.subgroup):
+        return redirect('teacher_dashboard')
 
     report, _ = LabReport.objects.get_or_create(student=student, lab_work=lab_work)
 
@@ -106,6 +124,9 @@ def set_defense(request, student_id, lab_id):
     lab_work = get_object_or_404(LaboratoryWork, pk=lab_id)
     report = get_object_or_404(LabReport, student=student, lab_work=lab_work)
 
+    if not _teacher_can_edit_subgroup(teacher, student.subgroup):
+        return redirect('teacher_dashboard')
+
     defense, _ = Defense.objects.get_or_create(
         report=report, defaults={'teacher': teacher, 'defense_date': None}
     )
@@ -117,7 +138,13 @@ def set_defense(request, student_id, lab_id):
         defense.save()
         return redirect('teacher_dashboard')
 
-    context = {'defense': defense, 'student': student, 'lab_work': lab_work}
+    defense_details = compute_defense_details(student, lab_work)
+
+    context = {
+        'defense': defense, 'student': student, 'lab_work': lab_work,
+        'defense_penalty': defense_details['penalty'],
+        'defense_final_score': defense_details['final_score'],
+    }
     return render(request, 'set_defense.html', context)
 
 
@@ -356,16 +383,14 @@ def student_dashboard(request):
     for lab_work in lab_works:
         report = reports.get(lab_work.pk)
         review = reviews.get(lab_work.pk)
-        review_total = None
-        if review:
-            review_total = sum((r.score or 0) for r in results_by_review.get(review.pk, []))
         defense = defenses.get(lab_work.pk)
         rows.append({
             'lab_work': lab_work,
             'report': report,
             'review': review,
-            'review_total': review_total,
+            'report_details': compute_report_details(student, lab_work) if review else None,
             'defense': defense,
+            'defense_details': compute_defense_details(student, lab_work) if defense else None,
         })
 
     sick_leaves = SickLeave.objects.filter(student=student).order_by('-pk')
@@ -373,6 +398,7 @@ def student_dashboard(request):
     summary = compute_student_summary(student)
 
     context = {
+        'student': student,
         'rows': rows,
         'sick_leaves': sick_leaves,
         'attendance_records': attendance_records,
@@ -405,7 +431,7 @@ def assistant_dashboard(request):
             cells.append({'lab_work': lab_work, 'report': report, 'review': review})
         rows.append({'student': student, 'cells': cells})
 
-    context = {'lab_works': lab_works, 'rows': rows}
+    context = {'lab_works': lab_works, 'rows': rows, 'assistant': assistant}
     return render(request, 'assistant_dashboard.html', context)
 
 
@@ -437,10 +463,13 @@ def review_report(request, student_id, lab_id):
         {'criterion': c, 'result': results.get(c.pk)} for c in criteria
     ]
     total = sum((r.score or 0) for r in results.values())
+    report_details = compute_report_details(student, lab_work)
 
     context = {
         'student': student, 'lab_work': lab_work, 'review': review,
         'criteria_rows': criteria_rows, 'total': total,
+        'report_penalty': report_details['penalty'],
+        'report_final_score': report_details['final_score'],
     }
     return render(request, 'review_report.html', context)
 
@@ -474,10 +503,13 @@ def teacher_review_report(request, student_id, lab_id):
         {'criterion': c, 'result': results.get(c.pk)} for c in criteria
     ]
     total = sum((r.score or 0) for r in results.values())
+    report_details = compute_report_details(student, lab_work)
 
     context = {
         'student': student, 'lab_work': lab_work, 'review': review,
         'criteria_rows': criteria_rows, 'total': total,
+        'report_penalty': report_details['penalty'],
+        'report_final_score': report_details['final_score'],
         'is_teacher_view': True,
     }
     return render(request, 'review_report.html', context)

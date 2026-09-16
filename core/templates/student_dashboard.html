@@ -8,7 +8,10 @@
 <body>
 <div class="container mt-4">
     <div class="d-flex justify-content-between align-items-center mb-4">
-        <h1>Кабинет студента</h1>
+        <div>
+            <h1>Кабинет студента</h1>
+            <span class="text-muted">Подгруппа: {{ student.subgroup }}</span>
+        </div>
         <a href="{% url 'logout' %}" class="btn btn-outline-secondary">Выйти</a>
     </div>
 
@@ -53,15 +56,21 @@
                         </td>
                         <td>
                             {% if row.review %}
-                                {{ row.review_total }} / 8
+                                {{ row.report_details.final_score|floatformat:2 }} / 8
+                                {% if row.report_details.penalty %}
+                                    <br><span class="text-danger small">(штраф: -{{ row.report_details.penalty|floatformat:2 }})</span>
+                                {% endif %}
                             {% else %}
                                 <span class="text-muted">не проверено</span>
                             {% endif %}
                         </td>
                         <td>{{ row.review.comment|default:"" }}</td>
                         <td>
-                            {% if row.defense %}
-                                {{ row.defense.score }}
+                            {% if row.defense and row.defense.score is not None %}
+                                {{ row.defense_details.final_score|floatformat:2 }}
+                                {% if row.defense_details.penalty %}
+                                    <br><span class="text-danger small">(штраф: -{{ row.defense_details.penalty|floatformat:2 }})</span>
+                                {% endif %}
                             {% else %}
                                 <span class="text-muted">нет</span>
                             {% endif %}

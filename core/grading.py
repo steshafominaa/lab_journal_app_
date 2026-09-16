@@ -28,19 +28,22 @@ def _confirmed_sick_days_between(student, start_date, end_date):
     return count
 
 
-def compute_report_score(student, lab_work):
+def compute_report_details(student, lab_work):
+    """Возвращает баллы за отчёт: сырую сумму по критериям, штраф и итог с учётом штрафа."""
+    empty = {'raw_score': 0, 'penalty': 0, 'final_score': 0, 'penalty_weeks': 0}
+
     try:
         report = LabReport.objects.get(student=student, lab_work=lab_work)
     except LabReport.DoesNotExist:
-        return 0
+        return empty
 
     if not report.submitted_at:
-        return 0
+        return empty
 
     try:
         review = report.review
     except ReportReview.DoesNotExist:
-        return 0
+        return empty
 
     raw_score = sum(float(r.score) for r in CriterionResult.objects.filter(review=review))
 
@@ -48,24 +51,30 @@ def compute_report_score(student, lab_work):
     submitted = report.submitted_at
 
     if submitted <= deadline:
-        return raw_score
+        return {'raw_score': raw_score, 'penalty': 0, 'final_score': raw_score, 'penalty_weeks': 0}
 
     late_days = (submitted - deadline).days
     sick_days = _confirmed_sick_days_between(student, deadline, submitted)
     effective_late_days = max(0, late_days - sick_days)
 
     if effective_late_days <= 0:
-        return raw_score
+        return {'raw_score': raw_score, 'penalty': 0, 'final_score': raw_score, 'penalty_weeks': 0}
 
     weeks = (effective_late_days - 1) // 7 + 1
 
     if weeks > MAX_PENALTY_WEEKS:
-        return 0
+        return {'raw_score': raw_score, 'penalty': raw_score, 'final_score': 0, 'penalty_weeks': weeks}
 
-    return max(0, raw_score - weeks)
+    final_score = max(0, raw_score - weeks)
+    return {'raw_score': raw_score, 'penalty': raw_score - final_score, 'final_score': final_score, 'penalty_weeks': weeks}
 
 
-def compute_defense_score(student, lab_work):
+def compute_report_score(student, lab_work):
+    return compute_report_details(student, lab_work)['final_score']
+
+
+def compute_defense_details(student, lab_work):
+    """Возвращает баллы за защиту: выставленную оценку, штраф и итог с учётом штрафа."""
     defense = None
     try:
         report = LabReport.objects.get(student=student, lab_work=lab_work)
@@ -83,13 +92,20 @@ def compute_defense_score(student, lab_work):
             missed_weeks += 1
         check_date += timedelta(days=7)
 
+    raw_score = float(defense.score) if (defense and defense.score is not None) else 0
+
     if missed_weeks > MAX_PENALTY_WEEKS:
-        return 0
+        return {'raw_score': raw_score, 'penalty': raw_score, 'final_score': 0, 'penalty_weeks': missed_weeks}
 
     if not defense or defense.score is None:
-        return 0
+        return {'raw_score': 0, 'penalty': 0, 'final_score': 0, 'penalty_weeks': missed_weeks}
 
-    return max(0, float(defense.score) - missed_weeks)
+    final_score = max(0, raw_score - missed_weeks)
+    return {'raw_score': raw_score, 'penalty': raw_score - final_score, 'final_score': final_score, 'penalty_weeks': missed_weeks}
+
+
+def compute_defense_score(student, lab_work):
+    return compute_defense_details(student, lab_work)['final_score']
 
 
 def compute_lab_grade(student, lab_work):

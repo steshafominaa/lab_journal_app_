@@ -29,7 +29,12 @@
             <textarea name="comment" class="form-control" rows="3">{{ review.comment }}</textarea>
         </div>
 
-        <p><strong>Текущая сумма баллов: {{ total }}</strong></p>
+        <p><strong>Текущая сумма баллов по критериям: {{ total }}</strong></p>
+
+        <div class="alert alert-secondary">
+            <div>Штраф за просрочку отчёта: <strong>{{ report_penalty|floatformat:2 }}</strong> балл(ов)</div>
+            <div>Итоговая оценка за отчёт (с учётом штрафа): <strong>{{ report_final_score|floatformat:2 }}</strong></div>
+        </div>
 
         <button type="submit" class="btn btn-primary">Сохранить</button>
         {% if is_teacher_view %}
