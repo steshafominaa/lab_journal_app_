@@ -47,6 +47,15 @@
                            class="btn btn-sm btn-outline-primary mt-1">
                             Указать дату сдачи
                         </a>
+                        {% if cell.review %}
+                            <br>
+                            <span class="small">Оценка ассистента за отчёт: {{ cell.review_total }}</span>
+                            <br>
+                            <a href="{% url 'teacher_review_report' row.student.pk cell.lab_work.pk %}"
+                               class="btn btn-sm btn-outline-secondary mt-1">
+                                Смотреть/изменить оценку за отчёт
+                            </a>
+                        {% endif %}
                         <hr class="my-1">
                         {% if cell.defense and cell.defense.defense_date %}
                             Защита: {{ cell.defense.defense_date|date:"d.m.Y" }}
