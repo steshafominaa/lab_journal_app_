@@ -19,6 +19,10 @@ urlpatterns = [
     path('student/sick-leave/add/', views.add_sick_leave, name='add_sick_leave'),
     path('teacher/sick-leave/', views.sick_leave_dashboard, name='sick_leave_dashboard'),
     path('teacher/sick-leave/<int:sick_leave_id>/', views.review_sick_leave, name='review_sick_leave'),
+    path('teacher/results/', views.results_dashboard, name='results_dashboard'),
+    path('teacher/discipline-settings/', views.discipline_settings_view, name='discipline_settings'),
+    path('teacher/criteria/', views.criteria_management, name='criteria_management'),
+    path('student/auto-pass/', views.set_auto_pass_agree, name='set_auto_pass_agree'),
 ]
 
 if settings.DEBUG:

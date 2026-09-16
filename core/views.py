@@ -1,10 +1,13 @@
+from datetime import date
 from django.contrib.auth.decorators import login_required
+from django.db.models import ProtectedError
 from django.shortcuts import render, redirect, get_object_or_404
 
 from .models import (
     LaboratoryWork, LabReport, Student, Criterion, ReportReview, CriterionResult, Defense,
-    Attendance, SickLeave,
+    Attendance, SickLeave, DisciplineResult, DisciplineSettings,
 )
+from .grading import compute_student_summary
 
 
 def _is_protected_by_confirmed_sick_leave(student, lesson_date):
@@ -61,6 +64,7 @@ def teacher_dashboard(request):
     context = {
         'lab_works': lab_works,
         'rows': rows,
+        'is_admin': teacher.is_admin,
     }
     return render(request, 'teacher_dashboard.html', context)
 
@@ -213,6 +217,110 @@ def review_sick_leave(request, sick_leave_id):
 
 
 @login_required
+def results_dashboard(request):
+    teacher = request.user.profile.teacher
+    students = Student.objects.filter(subgroup=teacher.subgroups.first())
+
+    if request.method == 'POST':
+        for student in students:
+            result, _ = DisciplineResult.objects.get_or_create(student=student)
+            bonus_key = f'bonus_{student.pk}'
+            exam_key = f'exam_{student.pk}'
+            if bonus_key in request.POST:
+                result.bonus_points = request.POST.get(bonus_key) or 0
+            if exam_key in request.POST and request.POST.get(exam_key):
+                result.exam_score = request.POST.get(exam_key)
+            result.save()
+        return redirect('results_dashboard')
+
+    rows = []
+    for student in students:
+        summary = compute_student_summary(student)
+        rows.append({'student': student, 'summary': summary})
+
+    context = {'rows': rows}
+    return render(request, 'results_dashboard.html', context)
+
+
+@login_required
+def discipline_settings_view(request):
+    teacher = request.user.profile.teacher
+    if not teacher.is_admin:
+        return redirect('teacher_dashboard')
+
+    settings_row, _ = DisciplineSettings.objects.get_or_create(
+        defaults={'lab_weight': 0.5, 'exam_weight': 0.5}
+    )
+
+    error = None
+    if request.method == 'POST':
+        lab_weight = request.POST.get('lab_weight')
+        exam_weight = request.POST.get('exam_weight')
+        try:
+            if abs(float(lab_weight) + float(exam_weight) - 1) > 0.001:
+                error = 'Сумма весов должна быть равна 1.'
+            else:
+                settings_row.lab_weight = lab_weight
+                settings_row.exam_weight = exam_weight
+                settings_row.save()
+                return redirect('teacher_dashboard')
+        except (TypeError, ValueError):
+            error = 'Введите корректные числа.'
+
+    return render(request, 'discipline_settings.html', {'settings': settings_row, 'error': error})
+
+@login_required
+def criteria_management(request):
+    teacher = request.user.profile.teacher
+    if not teacher.is_admin:
+        return redirect('teacher_dashboard')
+
+    criteria = Criterion.objects.all().order_by('pk')
+    total_max = sum(float(c.max_score) for c in criteria)
+
+    error = None
+    if request.method == 'POST':
+        if 'delete_id' in request.POST:
+            try:
+                Criterion.objects.filter(pk=request.POST.get('delete_id')).delete()
+                return redirect('criteria_management')
+            except ProtectedError:
+                error = 'Нельзя удалить критерий: он уже используется в проверенных отчётах.'
+        else:
+            description = request.POST.get('description', '').strip()
+            max_score_raw = request.POST.get('max_score')
+            try:
+                max_score_value = float(max_score_raw)
+                if not description:
+                    error = 'Укажите название критерия.'
+                elif max_score_value <= 0:
+                    error = 'Максимальный балл должен быть больше нуля.'
+                elif total_max + max_score_value > 8:
+                    error = 'Сумма максимальных баллов по всем критериям не может превышать 8.'
+                else:
+                    Criterion.objects.create(description=description, max_score=max_score_value)
+                    return redirect('criteria_management')
+            except (TypeError, ValueError):
+                error = 'Введите корректное число.'
+
+    context = {'criteria': criteria, 'total_max': total_max, 'error': error}
+    return render(request, 'criteria_management.html', context)
+
+@login_required
+def set_auto_pass_agree(request):
+    student = request.user.profile.student
+    summary = compute_student_summary(student)
+
+    if request.method == 'POST' and summary and summary['auto_pass_eligible']:
+        agree = request.POST.get('agree') == 'yes'
+        result, _ = DisciplineResult.objects.get_or_create(student=student)
+        result.auto_pass_agree = agree
+        result.save()
+
+    return redirect('student_dashboard')
+
+
+@login_required
 def student_dashboard(request):
     student = request.user.profile.student
     lab_works = list(LaboratoryWork.objects.all())
@@ -249,8 +357,14 @@ def student_dashboard(request):
 
     sick_leaves = SickLeave.objects.filter(student=student).order_by('-pk')
     attendance_records = Attendance.objects.filter(student=student).order_by('lesson_date')
+    summary = compute_student_summary(student)
 
-    context = {'rows': rows, 'sick_leaves': sick_leaves, 'attendance_records': attendance_records}
+    context = {
+        'rows': rows,
+        'sick_leaves': sick_leaves,
+        'attendance_records': attendance_records,
+        'summary': summary,
+    }
     return render(request, 'student_dashboard.html', context)
 
 
@@ -290,7 +404,7 @@ def review_report(request, student_id, lab_id):
     report = get_object_or_404(LabReport, student=student, lab_work=lab_work)
 
     review, _ = ReportReview.objects.get_or_create(
-        report=report, defaults={'assistant': assistant, 'comment': ''}
+        report=report, defaults={'assistant': assistant, 'comment': '', 'reviewed_at': date.today()}
     )
 
     criteria = Criterion.objects.all()

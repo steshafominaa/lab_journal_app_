@@ -7,19 +7,51 @@
 </head>
 <body>
 <div class="container" style="max-width: 400px; margin-top: 100px;">
-    <h4>{{ lab_work.title }}</h4>
-    <p>Студент: {{ student }}</p>
+    <h4>{{ student }} — {{ lab_work }}</h4>
+    <p class="text-muted">
+        Дедлайн отчёта: <strong>{{ lab_work.report_deadline|date:"d.m.Y" }}</strong>
+    </p>
     <form method="post">
         {% csrf_token %}
-        <input type="hidden" name="student_id" value="{{ student.pk }}">
-        <div class="mb-3">
+        <div class="mb-2">
             <label class="form-label">Дата сдачи отчёта</label>
-            <input type="date" name="submitted_at" class="form-control"
-                   value="{{ report.submitted_at|date:'Y-m-d' }}">
+            <input type="date" name="submitted_at" id="submitted_at" class="form-control"
+                   value="{{ report.submitted_at|date:'Y-m-d' }}"
+                   data-deadline="{{ lab_work.report_deadline|date:'Y-m-d' }}">
         </div>
+        <p id="lateWarning" class="small mb-3"></p>
         <button type="submit" class="btn btn-primary">Сохранить</button>
-        <a href="{% url 'teacher_dashboard' %}" class="btn btn-outline-secondary">Отмена</a>
+        <a href="{% url 'teacher_dashboard' %}" class="btn btn-outline-secondary">Назад</a>
     </form>
 </div>
+
+<script>
+    const input = document.getElementById('submitted_at');
+    const warning = document.getElementById('lateWarning');
+    const deadline = new Date(input.dataset.deadline);
+
+    function updateWarning() {
+        if (!input.value) {
+            warning.textContent = '';
+            input.classList.remove('is-invalid');
+            return;
+        }
+        const selected = new Date(input.value);
+        const diffDays = Math.round((selected - deadline) / (1000 * 60 * 60 * 24));
+
+        if (diffDays > 0) {
+            warning.textContent = 'Просрочка: ' + diffDays + ' дн. позже дедлайна.';
+            warning.className = 'small mb-3 text-danger';
+            input.classList.add('is-invalid');
+        } else {
+            warning.textContent = 'Сдано в срок.';
+            warning.className = 'small mb-3 text-success';
+            input.classList.remove('is-invalid');
+        }
+    }
+
+    input.addEventListener('input', updateWarning);
+    updateWarning();
+</script>
 </body>
 </html>

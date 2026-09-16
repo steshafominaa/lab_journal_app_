@@ -102,8 +102,67 @@
             </table>
         </div>
 
-                <div class="tab-pane fade" id="tab-summary">
-            <p class="text-muted">Раздел в разработке.</p>
+        <div class="tab-pane fade" id="tab-summary">
+            {% if summary %}
+                <table class="table table-bordered align-middle mb-4">
+                    <tbody>
+                    <tr>
+                        <th>Средняя оценка за лабораторные</th>
+                        <td>{{ summary.average_lab_score|floatformat:2 }}</td>
+                    </tr>
+                    <tr>
+                        <th>Бонусные баллы</th>
+                        <td>{{ summary.bonus|floatformat:2 }}</td>
+                    </tr>
+                    <tr>
+                        <th>Автомат доступен</th>
+                        <td>
+                            {% if summary.auto_pass_eligible %}
+                                <span class="text-success">Да</span>
+                            {% else %}
+                                <span class="text-muted">Нет</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    <tr>
+                        <th>Оценка за экзамен</th>
+                        <td>
+                            {% if summary.exam_score is not None %}
+                                {{ summary.exam_score|floatformat:2 }}
+                            {% else %}
+                                <span class="text-muted">не выставлена</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    <tr>
+                        <th>Итоговая оценка</th>
+                        <td>
+                            {% if summary.final_score is not None %}
+                                {{ summary.final_score|floatformat:2 }}
+                            {% else %}
+                                <span class="text-muted">не выставлена</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    </tbody>
+                </table>
+
+                {% if summary.auto_pass_eligible %}
+                    <p>Вы можете получить оценку за экзамен автоматом (средней оценкой за лабораторные). Согласны?</p>
+                    <form method="post" action="{% url 'set_auto_pass_agree' %}" class="d-inline">
+                        {% csrf_token %}
+                        <input type="hidden" name="agree" value="yes">
+                        <button type="submit" class="btn btn-success btn-sm">Да, согласен</button>
+                    </form>
+                    <form method="post" action="{% url 'set_auto_pass_agree' %}" class="d-inline">
+                        {% csrf_token %}
+                        <input type="hidden" name="agree" value="no">
+                        <button type="submit" class="btn btn-outline-secondary btn-sm">Нет, буду сдавать экзамен</button>
+                    </form>
+                {% endif %}
+            {% else %}
+                <p class="text-muted">Пока нет лабораторных работ для расчёта итога.</p>
+            {% endif %}
         </div>
 
         <div class="tab-pane fade" id="tab-sick-leave">

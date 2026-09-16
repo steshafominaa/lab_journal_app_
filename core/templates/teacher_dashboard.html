@@ -7,11 +7,16 @@
 </head>
 <body>
 <div class="container mt-4">
-    <div class="d-flex justify-content-between align-items-center mb-4">
+       <div class="d-flex justify-content-between align-items-center mb-4">
         <h1>Кабинет преподавателя</h1>
         <div>
             <a href="{% url 'attendance_dashboard' %}" class="btn btn-outline-primary">Посещаемость</a>
             <a href="{% url 'sick_leave_dashboard' %}" class="btn btn-outline-primary">Справки</a>
+            <a href="{% url 'results_dashboard' %}" class="btn btn-outline-primary">Итоги</a>
+            {% if is_admin %}
+                <a href="{% url 'criteria_management' %}" class="btn btn-outline-primary">Критерии</a>
+                <a href="{% url 'discipline_settings' %}" class="btn btn-outline-primary">Настройки</a>
+            {% endif %}
             <a href="{% url 'logout' %}" class="btn btn-outline-secondary">Выйти</a>
         </div>
     </div>
