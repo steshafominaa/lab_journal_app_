@@ -9,7 +9,8 @@
 <div class="container mt-4">
     <div class="d-flex justify-content-between align-items-center mb-4">
         <div>
-            <h1>Кабинет ассистента</h1>
+            <h1 class="mb-0">Здравствуйте, {{ request.user.profile.full_name }}!</h1>
+            <p class="text-muted mb-0">Кабинет ассистента</p>
             <span class="text-muted">Проверяемая подгруппа: {{ assistant.subgroup }}</span>
         </div>
         <a href="{% url 'logout' %}" class="btn btn-outline-secondary">Выйти</a>

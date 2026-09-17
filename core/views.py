@@ -371,6 +371,7 @@ def teacher_dashboard(request):
             continue
 
         editable = _teacher_can_edit_subgroup(teacher, subgroup)
+        is_own = subgroup.teacher_id == teacher.pk
 
         rows = []
         for student in subgroup_students:
@@ -392,6 +393,7 @@ def teacher_dashboard(request):
         subgroup_blocks.append({
             'subgroup': subgroup,
             'editable': editable,
+            'is_own': is_own,
             'rows': rows,
         })
 
@@ -793,7 +795,7 @@ def criteria_management(request):
                 Criterion.objects.filter(pk=request.POST.get('delete_id')).delete()
                 return redirect('criteria_management')
             except ProtectedError:
-                error = 'Нельзя удалить критерий: он уже используется в проверенных отчётах.'
+                error = 'Нельзя ��далить критерий: он уже используется в проверенных отчётах.'
         else:
             description = request.POST.get('description', '').strip()
             max_score_raw = request.POST.get('max_score')

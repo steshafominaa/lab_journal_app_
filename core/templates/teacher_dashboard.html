@@ -8,7 +8,10 @@
 <body>
 <div class="container mt-4">
        <div class="d-flex justify-content-between align-items-center mb-4">
-        <h1>Кабинет преподавателя</h1>
+        <div>
+            <h1 class="mb-0">Здравствуйте, {{ request.user.profile.full_name }}!</h1>
+            <p class="text-muted mb-0">Кабинет преподавателя</p>
+        </div>
         <div>
             <a href="{% url 'attendance_dashboard' %}" class="btn btn-outline-primary">Посещаемость</a>
             <a href="{% url 'sick_leave_dashboard' %}" class="btn btn-outline-primary">Справки</a>
@@ -29,8 +32,10 @@
     {% for block in subgroup_blocks %}
         <div class="d-flex align-items-center gap-2 mt-4 mb-2">
             <h5 class="mb-0">Подгруппа: {{ block.subgroup }}</h5>
-            {% if block.editable %}
+            {% if block.is_own %}
                 <span class="badge bg-success">ваша подгруппа</span>
+            {% elif block.editable %}
+                <span class="badge bg-info text-dark">доступно для редактирования (администратор)</span>
             {% else %}
                 <span class="badge bg-secondary">только просмотр</span>
             {% endif %}
