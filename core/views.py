@@ -649,6 +649,86 @@ def performance_report(request):
 
 
 @login_required
+def debtors_report(request):
+    teacher = request.user.profile.teacher
+    subgroups = _visible_subgroups_for_teacher(teacher)
+
+    selected_subgroup_id = request.GET.get('subgroup') or ''
+    students_qs = _visible_students_for_teacher(teacher).order_by(
+        'profile__user__last_name', 'profile__user__first_name'
+    )
+    if selected_subgroup_id:
+        students_qs = students_qs.filter(subgroup_id=selected_subgroup_id)
+    students = list(students_qs)
+
+    lab_works = list(LaboratoryWork.objects.order_by('report_deadline'))
+    today = date.today()
+
+    reports_by_key = {
+        (r.student_id, r.lab_work_id): r
+        for r in LabReport.objects.filter(student__in=students, lab_work__in=lab_works)
+    }
+    defenses_by_report_id = {
+        d.report_id: d for d in Defense.objects.filter(report__student__in=students, report__lab_work__in=lab_works)
+    }
+
+    debts_by_student = {}
+    for student in students:
+        student_debts = []
+        for lab_work in lab_works:
+            report = reports_by_key.get((student.pk, lab_work.pk))
+
+            if lab_work.report_deadline < today and (not report or not report.submitted_at):
+                student_debts.append({
+                    'lab_work': lab_work,
+                    'type': 'Отчет',
+                    'deadline': lab_work.report_deadline,
+                })
+
+            defense = defenses_by_report_id.get(report.pk) if report else None
+            if lab_work.defense_deadline < today and (not defense or defense.score is None):
+                student_debts.append({
+                    'lab_work': lab_work,
+                    'type': 'Защита',
+                    'deadline': lab_work.defense_deadline,
+                })
+
+        if student_debts:
+            debts_by_student[student] = student_debts
+
+    rows = [
+        {'student': student, 'debts': debts}
+        for student, debts in debts_by_student.items()
+    ]
+
+    if request.GET.get('export') == 'csv':
+        response = HttpResponse(content_type='text/csv')
+        response['Content-Disposition'] = 'attachment; filename="debtors_report.csv"'
+        response.write('\ufeff')
+        writer = csv.writer(response, delimiter=';')
+        writer.writerow([f'Отчет по должникам на {today.strftime("%d.%m.%Y")}'])
+        writer.writerow(['Студент', 'Подгруппа', 'Лабораторная работа', 'Не сдано', 'Дедлайн'])
+        for row in rows:
+            for debt in row['debts']:
+                writer.writerow([
+                    row['student'].profile.full_name(),
+                    row['student'].subgroup.subgroup_name,
+                    debt['lab_work'].title,
+                    debt['type'],
+                    debt['deadline'].strftime('%d.%m.%Y'),
+                ])
+        return response
+
+    context = {
+        'subgroups': subgroups,
+        'selected_subgroup_id': selected_subgroup_id,
+        'rows': rows,
+        'today': today,
+    }
+    return render(request, 'debtors_report.html', context)
+
+
+@login_required
 def add_lesson_date(request):
     teacher = request.user.profile.teacher
     if teacher.is_admin:

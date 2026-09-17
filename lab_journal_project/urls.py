@@ -39,6 +39,7 @@ urlpatterns = [
     path('teacher/admin/lab-works/<int:pk>/edit/', views.edit_lab_work, name='edit_lab_work'),
     path('teacher/reports/attendance/', views.attendance_report, name='attendance_report'),
     path('teacher/reports/performance/', views.performance_report, name='performance_report'),
+    path('teacher/reports/debtors/', views.debtors_report, name='debtors_report'),
 ]
 
 if settings.DEBUG:
