@@ -17,7 +17,7 @@
             <label for="subgroup" class="col-form-label">Подгруппа:</label>
         </div>
         <div class="col-auto">
-            <select id="subgroup" name="subgroup" class="form-select">
+            <select id="subgroup" name="subgroup" class="form-select" onchange="this.form.submit()">
                 <option value="" {% if not selected_subgroup_id %}selected{% endif %}>Все подгруппы</option>
                 {% for subgroup in subgroups %}
                     <option value="{{ subgroup.pk }}" {% if selected_subgroup_id == subgroup.pk|stringformat:"s" %}selected{% endif %}>
