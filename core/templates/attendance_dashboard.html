@@ -16,9 +16,24 @@
         </div>
     </div>
 
+    <form method="get" class="row g-2 mb-3 align-items-end">
+        <div class="col-auto">
+            <label for="subgroup" class="form-label">Подгруппа</label>
+            <select id="subgroup" name="subgroup" class="form-select" onchange="this.form.submit()">
+                <option value="" {% if not selected_subgroup_id %}selected{% endif %}>Все подгруппы</option>
+                {% for subgroup in subgroups %}
+                    <option value="{{ subgroup.pk }}" {% if selected_subgroup_id == subgroup.pk|stringformat:"s" %}selected{% endif %}>
+                        {{ subgroup.subgroup_name }}
+                    </option>
+                {% endfor %}
+            </select>
+        </div>
+    </form>
+
     {% if lesson_dates %}
         <form method="post">
             {% csrf_token %}
+            <input type="hidden" name="subgroup" value="{{ selected_subgroup_id }}">
             <table class="table table-bordered align-middle">
                 <thead>
                 <tr>

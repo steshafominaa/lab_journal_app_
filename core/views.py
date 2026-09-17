@@ -6,6 +6,7 @@ from django.db import IntegrityError, transaction
 from django.db.models import ProtectedError
 from django.http import HttpResponse
 from django.shortcuts import render, redirect, get_object_or_404
+from django.urls import reverse
 
 from .models import (
     LaboratoryWork, LabReport, Student, Criterion, ReportReview, CriterionResult, Defense,
@@ -457,10 +458,12 @@ def set_defense(request, student_id, lab_id):
 @login_required
 def attendance_dashboard(request):
     teacher = request.user.profile.teacher
-    if teacher.is_admin:
-        students = Student.objects.select_related('subgroup')
-    else:
-        students = Student.objects.filter(subgroup__in=teacher.subgroups.all()).select_related('subgroup')
+    subgroups = _visible_subgroups_for_teacher(teacher)
+
+    selected_subgroup_id = request.POST.get('subgroup') or request.GET.get('subgroup') or ''
+    students = _visible_students_for_teacher(teacher)
+    if selected_subgroup_id:
+        students = students.filter(subgroup_id=selected_subgroup_id)
 
     lesson_dates = sorted(set(
         Attendance.objects.filter(student__in=students).values_list('lesson_date', flat=True)
@@ -490,6 +493,8 @@ def attendance_dashboard(request):
                     student_id=student_id, lesson_date=lesson_date,
                     defaults={'status': value or None}
                 )
+        if selected_subgroup_id:
+            return redirect(f"{reverse('attendance_dashboard')}?subgroup={selected_subgroup_id}")
         return redirect('attendance_dashboard')
 
     rows = []
@@ -500,7 +505,13 @@ def attendance_dashboard(request):
             cells.append({'lesson_date': lesson_date, 'status': record.status if record else ''})
         rows.append({'student': student, 'cells': cells})
 
-    context = {'lesson_dates': lesson_dates, 'rows': rows, 'status_choices': Attendance.STATUS_CHOICES}
+    context = {
+        'lesson_dates': lesson_dates,
+        'rows': rows,
+        'status_choices': Attendance.STATUS_CHOICES,
+        'subgroups': subgroups,
+        'selected_subgroup_id': selected_subgroup_id,
+    }
     return render(request, 'attendance_dashboard.html', context)
 
 
@@ -709,10 +720,12 @@ def review_sick_leave(request, sick_leave_id):
 @login_required
 def results_dashboard(request):
     teacher = request.user.profile.teacher
-    if teacher.is_admin:
-        students = Student.objects.select_related('subgroup')
-    else:
-        students = Student.objects.filter(subgroup__in=teacher.subgroups.all()).select_related('subgroup')
+    subgroups = _visible_subgroups_for_teacher(teacher)
+
+    selected_subgroup_id = request.POST.get('subgroup') or request.GET.get('subgroup') or ''
+    students = _visible_students_for_teacher(teacher)
+    if selected_subgroup_id:
+        students = students.filter(subgroup_id=selected_subgroup_id)
 
     if request.method == 'POST':
         for student in students:
@@ -724,6 +737,8 @@ def results_dashboard(request):
             if exam_key in request.POST and request.POST.get(exam_key):
                 result.exam_score = request.POST.get(exam_key)
             result.save()
+        if selected_subgroup_id:
+            return redirect(f"{reverse('results_dashboard')}?subgroup={selected_subgroup_id}")
         return redirect('results_dashboard')
 
     rows = []
@@ -731,7 +746,7 @@ def results_dashboard(request):
         summary = compute_student_summary(student)
         rows.append({'student': student, 'summary': summary})
 
-    context = {'rows': rows}
+    context = {'rows': rows, 'subgroups': subgroups, 'selected_subgroup_id': selected_subgroup_id}
     return render(request, 'results_dashboard.html', context)
 
 
@@ -789,7 +804,7 @@ def criteria_management(request):
                 elif max_score_value <= 0:
                     error = 'Максимальный балл должен быть больше нуля.'
                 elif total_max + max_score_value > 8:
-                    error = 'Сумма максимальных баллов по всем критериям не может превышать 8.'
+                    error = 'Су��ма максимальных баллов по всем критериям не может превышать 8.'
                 else:
                     Criterion.objects.create(description=description, max_score=max_score_value)
                     return redirect('criteria_management')
