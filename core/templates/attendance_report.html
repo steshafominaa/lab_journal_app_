@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title>Отчет по посещаемости</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+</head>
+<body>
+<div class="container mt-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1>Отчет по посещаемости</h1>
+        <a href="{% url 'attendance_dashboard' %}" class="btn btn-outline-secondary">К посещаемости</a>
+    </div>
+
+    <form method="get" class="row g-2 align-items-center mb-4">
+        <div class="col-auto">
+            <label for="subgroup" class="col-form-label">Подгруппа:</label>
+        </div>
+        <div class="col-auto">
+            <select id="subgroup" name="subgroup" class="form-select">
+                <option value="" {% if not selected_subgroup_id %}selected{% endif %}>Все подгруппы</option>
+                {% for subgroup in subgroups %}
+                    <option value="{{ subgroup.pk }}" {% if selected_subgroup_id == subgroup.pk|stringformat:"s" %}selected{% endif %}>
+                        {{ subgroup.subgroup_name }}
+                    </option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="col-auto">
+            <button type="submit" class="btn btn-primary">Показать</button>
+        </div>
+        <div class="col-auto">
+            <button type="submit" name="export" value="csv" class="btn btn-outline-success">Скачать CSV</button>
+        </div>
+    </form>
+
+    {% if lesson_dates %}
+        <div class="table-responsive">
+            <table class="table table-bordered align-middle text-center">
+                <thead>
+                <tr>
+                    <th rowspan="2" class="align-middle">Студент</th>
+                    {% for lesson_date in lesson_dates %}
+                        <th rowspan="2" class="align-middle">{{ lesson_date|date:"d.m." }}</th>
+                    {% endfor %}
+                    <th colspan="2">Итог</th>
+                </tr>
+                <tr>
+                    <th>Присутствовал</th>
+                    <th>Пропущено</th>
+                </tr>
+                </thead>
+                <tbody>
+                {% for row in rows %}
+                    <tr>
+                        <td class="text-start">{{ row.student.profile.full_name }}</td>
+                        {% for status in row.cells %}
+                            <td>{{ status|default:"" }}</td>
+                        {% endfor %}
+                        <td>{{ row.present_count }}</td>
+                        <td>{{ row.missed_count }}</td>
+                    </tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    {% else %}
+        <p class="text-muted">Пока не добавлено ни одной даты занятия.</p>
+    {% endif %}
+</div>
+</body>
+</html>

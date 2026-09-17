@@ -1,8 +1,10 @@
+import csv
 from datetime import date
 from django.contrib.auth import get_user_model, logout
 from django.contrib.auth.decorators import login_required
 from django.db import IntegrityError, transaction
 from django.db.models import ProtectedError
+from django.http import HttpResponse
 from django.shortcuts import render, redirect, get_object_or_404
 
 from .models import (
@@ -30,6 +32,18 @@ def logout_view(request):
     """Разлогинивает пользователя и по GET, и по POST (стандартный LogoutView Django принимает только POST)."""
     logout(request)
     return redirect('home')
+
+
+def _visible_students_for_teacher(teacher):
+    if teacher.is_admin:
+        return Student.objects.select_related('subgroup', 'profile__user')
+    return Student.objects.filter(subgroup__in=teacher.subgroups.all()).select_related('subgroup', 'profile__user')
+
+
+def _visible_subgroups_for_teacher(teacher):
+    if teacher.is_admin:
+        return Subgroup.objects.order_by('subgroup_name')
+    return teacher.subgroups.order_by('subgroup_name')
 
 
 def _is_protected_by_confirmed_sick_leave(student, lesson_date):
@@ -488,6 +502,137 @@ def attendance_dashboard(request):
 
     context = {'lesson_dates': lesson_dates, 'rows': rows, 'status_choices': Attendance.STATUS_CHOICES}
     return render(request, 'attendance_dashboard.html', context)
+
+
+@login_required
+def attendance_report(request):
+    teacher = request.user.profile.teacher
+    subgroups = _visible_subgroups_for_teacher(teacher)
+
+    selected_subgroup_id = request.GET.get('subgroup') or ''
+    students_qs = _visible_students_for_teacher(teacher).order_by(
+        'profile__user__last_name', 'profile__user__first_name'
+    )
+    if selected_subgroup_id:
+        students_qs = students_qs.filter(subgroup_id=selected_subgroup_id)
+    students = list(students_qs)
+
+    lesson_dates = sorted(set(
+        Attendance.objects.filter(student__in=students).values_list('lesson_date', flat=True)
+    ))
+    records = {
+        (a.student_id, a.lesson_date): a.status
+        for a in Attendance.objects.filter(student__in=students)
+    }
+
+    rows = []
+    for student in students:
+        statuses = [records.get((student.pk, lesson_date)) for lesson_date in lesson_dates]
+        rows.append({
+            'student': student,
+            'cells': statuses,
+            'present_count': sum(1 for s in statuses if s == 'П'),
+            'missed_count': sum(1 for s in statuses if s in ('Н', 'Б')),
+        })
+
+    if request.GET.get('export') == 'csv':
+        response = HttpResponse(content_type='text/csv')
+        response['Content-Disposition'] = 'attachment; filename="attendance_report.csv"'
+        response.write('\ufeff')
+        writer = csv.writer(response, delimiter=';')
+        writer.writerow(['Отчет по посещаемости'])
+        writer.writerow(
+            ['Студент'] + [d.strftime('%d.%m.') for d in lesson_dates] + ['Присутствовал', 'Пропущено']
+        )
+        for row in rows:
+            writer.writerow(
+                [row['student'].profile.full_name()]
+                + [cell or '' for cell in row['cells']]
+                + [row['present_count'], row['missed_count']]
+            )
+        return response
+
+    context = {
+        'subgroups': subgroups,
+        'selected_subgroup_id': selected_subgroup_id,
+        'lesson_dates': lesson_dates,
+        'rows': rows,
+    }
+    return render(request, 'attendance_report.html', context)
+
+
+@login_required
+def performance_report(request):
+    teacher = request.user.profile.teacher
+    subgroups = _visible_subgroups_for_teacher(teacher)
+
+    selected_subgroup_id = request.GET.get('subgroup') or ''
+    students_qs = _visible_students_for_teacher(teacher).order_by(
+        'profile__user__last_name', 'profile__user__first_name'
+    )
+    if selected_subgroup_id:
+        students_qs = students_qs.filter(subgroup_id=selected_subgroup_id)
+    students = list(students_qs)
+
+    lab_works = list(LaboratoryWork.objects.order_by('report_deadline'))
+
+    rows = []
+    for student in students:
+        summary = compute_student_summary(student)
+        lab_cells = []
+        if summary:
+            grades_by_id = {g['lab_work'].pk: g for g in summary['grades']}
+            for lab_work in lab_works:
+                grade = grades_by_id.get(lab_work.pk)
+                lab_cells.append({
+                    'report_score': grade['report_score'] if grade else 0,
+                    'defense_score': grade['defense_score'] if grade else 0,
+                    'lab_score': grade['lab_score'] if grade else 0,
+                })
+        rows.append({'student': student, 'summary': summary, 'lab_cells': lab_cells})
+
+    if request.GET.get('export') == 'csv':
+        response = HttpResponse(content_type='text/csv')
+        response['Content-Disposition'] = 'attachment; filename="performance_report.csv"'
+        response.write('\ufeff')
+        writer = csv.writer(response, delimiter=';')
+        writer.writerow(['Отчет по успеваемости'])
+
+        header_top = ['Студент']
+        header_bottom = ['']
+        for index, _lab_work in enumerate(lab_works, start=1):
+            header_top += [f'ЛР {index}', '', '']
+            header_bottom += ['Отчет', 'Защита', 'Итог']
+        header_top += ['Итог за ЛР', 'Экзамен', 'Итог']
+        header_bottom += ['', '', '']
+        writer.writerow(header_top)
+        writer.writerow(header_bottom)
+
+        for row in rows:
+            line = [row['student'].profile.full_name()]
+            for cell in row['lab_cells']:
+                line += [
+                    f"{cell['report_score']:.2f}",
+                    f"{cell['defense_score']:.2f}",
+                    f"{cell['lab_score']:.2f}",
+                ]
+            summary = row['summary']
+            if summary:
+                line.append(f"{summary['average_lab_score']:.2f}")
+                line.append(f"{summary['exam_score']:.2f}" if summary['exam_score'] is not None else '')
+                line.append(f"{summary['final_score']:.2f}" if summary['final_score'] is not None else '')
+            else:
+                line += ['', '', '']
+            writer.writerow(line)
+        return response
+
+    context = {
+        'subgroups': subgroups,
+        'selected_subgroup_id': selected_subgroup_id,
+        'lab_works': lab_works,
+        'rows': rows,
+    }
+    return render(request, 'performance_report.html', context)
 
 
 @login_required

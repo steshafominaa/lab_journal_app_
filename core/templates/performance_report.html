@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title>Отчет по успеваемости</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+</head>
+<body>
+<div class="container mt-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1>Отчет по успеваемости</h1>
+        <a href="{% url 'results_dashboard' %}" class="btn btn-outline-secondary">К итогам</a>
+    </div>
+
+    <form method="get" class="row g-2 align-items-center mb-4">
+        <div class="col-auto">
+            <label for="subgroup" class="col-form-label">Подгруппа:</label>
+        </div>
+        <div class="col-auto">
+            <select id="subgroup" name="subgroup" class="form-select">
+                <option value="" {% if not selected_subgroup_id %}selected{% endif %}>Все подгруппы</option>
+                {% for subgroup in subgroups %}
+                    <option value="{{ subgroup.pk }}" {% if selected_subgroup_id == subgroup.pk|stringformat:"s" %}selected{% endif %}>
+                        {{ subgroup.subgroup_name }}
+                    </option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="col-auto">
+            <button type="submit" class="btn btn-primary">Показать</button>
+        </div>
+        <div class="col-auto">
+            <button type="submit" name="export" value="csv" class="btn btn-outline-success">Скачать CSV</button>
+        </div>
+    </form>
+
+    {% if lab_works %}
+        <div class="table-responsive">
+            <table class="table table-bordered align-middle text-center">
+                <thead>
+                <tr>
+                    <th rowspan="2" class="align-middle">Студент</th>
+                    {% for lab_work in lab_works %}
+                        <th colspan="3">ЛР {{ forloop.counter }}</th>
+                    {% endfor %}
+                    <th rowspan="2" class="align-middle">Итог за ЛР</th>
+                    <th rowspan="2" class="align-middle">Экзамен</th>
+                    <th rowspan="2" class="align-middle">Итог</th>
+                </tr>
+                <tr>
+                    {% for lab_work in lab_works %}
+                        <th>Отчет</th>
+                        <th>Защита</th>
+                        <th>Итог</th>
+                    {% endfor %}
+                </tr>
+                </thead>
+                <tbody>
+                {% for row in rows %}
+                    <tr>
+                        <td class="text-start">{{ row.student.profile.full_name }}</td>
+                        {% for cell in row.lab_cells %}
+                            <td>{{ cell.report_score|floatformat:2 }}</td>
+                            <td>{{ cell.defense_score|floatformat:2 }}</td>
+                            <td>{{ cell.lab_score|floatformat:2 }}</td>
+                        {% endfor %}
+                        {% if row.summary %}
+                            <td>{{ row.summary.average_lab_score|floatformat:2 }}</td>
+                            <td>
+                                {% if row.summary.exam_score is not None %}
+                                    {{ row.summary.exam_score|floatformat:2 }}
+                                {% else %}
+                                    <span class="text-muted">—</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if row.summary.final_score is not None %}
+                                    {{ row.summary.final_score|floatformat:2 }}
+                                {% else %}
+                                    <span class="text-muted">не выставлена</span>
+                                {% endif %}
+                            </td>
+                        {% else %}
+                            <td colspan="3" class="text-muted">—</td>
+                        {% endif %}
+                    </tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    {% else %}
+        <p class="text-muted">Пока не создано ни одной лабораторной работы.</p>
+    {% endif %}
+</div>
+</body>
+</html>
