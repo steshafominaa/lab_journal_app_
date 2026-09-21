@@ -380,13 +380,17 @@ def teacher_dashboard(request):
                 report = reports.get((student.pk, lab_work.pk))
                 defense = defenses.get((student.pk, lab_work.pk))
                 review = reviews.get((student.pk, lab_work.pk))
+                has_defense_info = bool(
+                    defense and (defense.defense_date or defense.score is not None)
+                )
                 cells.append({
                     'lab_work': lab_work,
                     'report': report,
                     'defense': defense,
+                    'has_defense_info': has_defense_info,
                     'review': review,
                     'report_details': compute_report_details(student, lab_work) if review else None,
-                    'defense_details': compute_defense_details(student, lab_work) if defense else None,
+                    'defense_details': compute_defense_details(student, lab_work) if has_defense_info else None,
                 })
             rows.append({'student': student, 'cells': cells})
 

@@ -13,87 +13,87 @@
     <h4>Сдача отчётов и защиты по лабораторным работам</h4>
 
     {% for block in subgroup_blocks %}
-        <div class="d-flex align-items-center gap-2 mt-4 mb-2">
-            <h5 class="mb-0">Подгруппа: {{ block.subgroup }}</h5>
-            {% if block.is_own %}
-                <span class="badge bg-success">ваша подгруппа</span>
-            {% elif block.editable %}
-                <span class="badge bg-info text-dark">доступно для редактирования (администратор)</span>
-            {% else %}
-                <span class="badge bg-secondary">только просмотр</span>
-            {% endif %}
+        <div class="mt-4 mb-2">
+            <h5 class="subgroup-heading">Подгруппа: {{ block.subgroup }}</h5>
         </div>
-        <table class="table table-bordered align-middle">
-            <thead>
-            <tr>
-                <th>Студент</th>
-                {% for lab_work in lab_works %}
-                    <th>{{ lab_work.title }}</th>
-                {% endfor %}
-            </tr>
-            </thead>
-            <tbody>
-            {% for row in block.rows %}
-                <tr>
-                    <td>{{ row.student }}</td>
-                    {% for cell in row.cells %}
-                        <td>
-                            {% if cell.report and cell.report.submitted_at %}
-                                Отчёт: {{ cell.report.submitted_at|date:"d.m.Y" }}
-                            {% else %}
-                                <span class="text-muted">отчёт не сдан</span>
-                            {% endif %}
+
+        <div class="row lab-board-header gx-3">
+            <div class="col-12 col-lg-2">Студент</div>
+            {% for lab_work in lab_works %}
+                <div class="col-12 col-lg">{{ lab_work.title }}</div>
+            {% endfor %}
+        </div>
+
+        {% for row in block.rows %}
+            <div class="row gx-3 gy-3 align-items-stretch mb-3">
+                <div class="col-12 col-lg-2 lab-board-student">{{ row.student }}</div>
+                {% for cell in row.cells %}
+                    <div class="col-12 col-lg">
+                        <div class="lab-card">
+                            <span class="lab-card-label">Отчёт</span>
+                            <div class="lab-card-value">
+                                {% if cell.report and cell.report.submitted_at %}
+                                    {{ cell.report.submitted_at|date:"d.m.Y" }}
+                                {% else %}
+                                    <span class="text-muted">отчёт не сдан</span>
+                                {% endif %}
+                            </div>
                             {% if block.editable %}
-                                <br>
                                 <a href="{% url 'set_report_date' cell.lab_work.pk %}?student_id={{ row.student.pk }}"
-                                   class="btn btn-sm btn-outline-primary mt-1">
+                                   class="btn-pill mb-3">
                                     Указать дату сдачи
                                 </a>
                             {% endif %}
                             {% if cell.review %}
-                                <br>
-                                <span class="small">
+                                <div class="lab-card-score">
                                     Оценка за отчёт: {{ cell.report_details.final_score|floatformat:2 }} / 8
                                     {% if cell.report_details.penalty %}
-                                        <span class="text-danger">(штраф: -{{ cell.report_details.penalty|floatformat:2 }})</span>
+                                        <span class="pill pill-danger">штраф: -{{ cell.report_details.penalty|floatformat:2 }}</span>
                                     {% endif %}
-                                </span>
+                                </div>
                                 {% if block.editable %}
-                                    <br>
                                     <a href="{% url 'teacher_review_report' row.student.pk cell.lab_work.pk %}"
-                                       class="btn btn-sm btn-outline-secondary mt-1">
-                                        Смотреть/изменить оценку за отчёт
+                                       class="lab-card-link">
+                                        Смотреть / изменить оценку
                                     </a>
                                 {% endif %}
                             {% endif %}
-                            <hr class="my-1">
-                            {% if cell.defense and cell.defense.defense_date %}
-                                Защита: {{ cell.defense.defense_date|date:"d.m.Y" }}
-                                {% if cell.defense.score is not None %}
-                                    (итог: {{ cell.defense_details.final_score|floatformat:2 }}
+
+                            <hr>
+
+                            <span class="lab-card-label">Защита</span>
+                            <div class="lab-card-value">
+                                {% if cell.has_defense_info %}
+                                    {% if cell.defense.defense_date %}
+                                        {{ cell.defense.defense_date|date:"d.m.Y" }}
+                                    {% else %}
+                                        <span class="text-muted">дата не указана</span>
+                                    {% endif %}
+                                    {% if cell.defense.score is not None %}
+                                        (итог: {{ cell.defense_details.final_score|floatformat:2 }})
+                                    {% endif %}
                                     {% if cell.defense_details.penalty %}
-                                        <span class="text-danger">штраф: -{{ cell.defense_details.penalty|floatformat:2 }}</span>
-                                    {% endif %})
+                                        <span class="pill pill-danger">штраф: -{{ cell.defense_details.penalty|floatformat:2 }}</span>
+                                    {% endif %}
+                                {% else %}
+                                    <span class="text-muted">защита не проведена</span>
                                 {% endif %}
-                            {% else %}
-                                <span class="text-muted">защита не проведена</span>
-                            {% endif %}
+                            </div>
                             {% if block.editable %}
-                                <br>
                                 {% if cell.report %}
-                                    <a href="{% url 'set_defense' row.student.pk cell.lab_work.pk %}"
-                                       class="btn btn-sm btn-outline-success mt-1">
+                                    <a href="{% url 'set_defense' row.student.pk cell.lab_work.pk %}" class="btn-pill">
                                         Защита
                                     </a>
                                 {% else %}
                                     <span class="text-muted small">сначала укажите дату сдачи отчёта</span>
                                 {% endif %}
+                            {% else %}
+                                <span class="btn-pill btn-pill-disabled" aria-disabled="true">Защита</span>
                             {% endif %}
-                        </td>
-                    {% endfor %}
-                </tr>
-            {% endfor %}
-            </tbody>
-        </table>
+                        </div>
+                    </div>
+                {% endfor %}
+            </div>
+        {% endfor %}
     {% endfor %}
 {% endblock %}

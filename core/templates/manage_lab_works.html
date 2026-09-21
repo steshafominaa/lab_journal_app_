@@ -68,17 +68,37 @@
         </div>
         <div class="col-6 col-md-2">
             <label class="form-label">Вес отчёта</label>
-            <input type="number" step="0.01" min="0.01" max="0.99" name="report_weight" class="form-control" required>
+            <input type="number" step="0.01" min="0.01" max="0.99" name="report_weight" id="add_report_weight"
+                   class="form-control" value="0.50" required>
         </div>
         <div class="col-6 col-md-2">
             <label class="form-label">Вес защиты</label>
-            <input type="number" step="0.01" min="0.01" max="0.99" name="defense_weight" class="form-control" required>
-        </div>
-        <div class="col-12">
-            <div class="form-text">Сумма веса отчёта и веса защиты должна быть равна 1.</div>
+            <input type="number" step="0.01" min="0.01" max="0.99" name="defense_weight" id="add_defense_weight"
+                   class="form-control" value="0.50" required>
         </div>
         <div class="col-12 col-md-2">
             <button type="submit" class="btn btn-primary w-100">Добавить</button>
         </div>
     </form>
+{% endblock %}
+
+{% block extra_js %}
+    <script>
+        function linkWeightInputs(idA, idB, min, max) {
+            var a = document.getElementById(idA);
+            var b = document.getElementById(idB);
+            if (!a || !b) return;
+            function sync(changed, other) {
+                changed.addEventListener('input', function () {
+                    var value = parseFloat(changed.value);
+                    if (isNaN(value)) return;
+                    var counterpart = Math.min(max, Math.max(min, 1 - value));
+                    other.value = counterpart.toFixed(2);
+                });
+            }
+            sync(a, b);
+            sync(b, a);
+        }
+        linkWeightInputs('add_report_weight', 'add_defense_weight', 0.01, 0.99);
+    </script>
 {% endblock %}

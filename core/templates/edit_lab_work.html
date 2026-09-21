@@ -32,15 +32,35 @@
         </div>
         <div class="mb-3">
             <label class="form-label">Вес отчёта</label>
-            <input type="number" step="0.01" min="0.01" max="0.99" name="report_weight" class="form-control"
-                   value="{{ lab_work.report_weight }}" required>
+            <input type="number" step="0.01" min="0.01" max="0.99" name="report_weight" id="edit_report_weight"
+                   class="form-control" value="{{ lab_work.report_weight }}" required>
         </div>
         <div class="mb-3">
             <label class="form-label">Вес защиты</label>
-            <input type="number" step="0.01" min="0.01" max="0.99" name="defense_weight" class="form-control"
-                   value="{{ lab_work.defense_weight }}" required>
-            <div class="form-text">Сумма веса отчёта и веса защиты должна быть равна 1.</div>
+            <input type="number" step="0.01" min="0.01" max="0.99" name="defense_weight" id="edit_defense_weight"
+                   class="form-control" value="{{ lab_work.defense_weight }}" required>
         </div>
         <button type="submit" class="btn btn-primary">Сохранить</button>
     </form>
+{% endblock %}
+
+{% block extra_js %}
+    <script>
+        function linkWeightInputs(idA, idB, min, max) {
+            var a = document.getElementById(idA);
+            var b = document.getElementById(idB);
+            if (!a || !b) return;
+            function sync(changed, other) {
+                changed.addEventListener('input', function () {
+                    var value = parseFloat(changed.value);
+                    if (isNaN(value)) return;
+                    var counterpart = Math.min(max, Math.max(min, 1 - value));
+                    other.value = counterpart.toFixed(2);
+                });
+            }
+            sync(a, b);
+            sync(b, a);
+        }
+        linkWeightInputs('edit_report_weight', 'edit_defense_weight', 0.01, 0.99);
+    </script>
 {% endblock %}

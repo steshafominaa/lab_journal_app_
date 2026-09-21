@@ -18,7 +18,7 @@
             <th>ФИО</th>
             <th>Email</th>
             <th>Роль</th>
-            <th>Подгруппа / права</th>
+            <th>Подгруппа</th>
             <th></th>
         </tr>
         </thead>
@@ -27,17 +27,26 @@
             <tr>
                 <td>{{ profile.full_name }}</td>
                 <td>{{ profile.user.email }}</td>
-                <td>{{ profile.get_role_display }}</td>
+                <td>
+                    {{ profile.get_role_display }}
+                    {% if profile.role == 'teacher' and profile.teacher.is_admin %}
+                        <svg class="role-icon-admin" width="16" height="16" viewBox="0 0 24 24" fill="none"
+                             stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+                             aria-label="Администратор" role="img">
+                            <title>Администратор</title>
+                            <path d="M12 2l8 3v6c0 5-3.5 8.5-8 11-4.5-2.5-8-6-8-11V5l8-3z"></path>
+                        </svg>
+                    {% endif %}
+                </td>
                 <td>
                     {% if profile.role == 'teacher' %}
-                        {% if profile.teacher.is_admin %}
-                            <span class="badge bg-danger">администратор</span>
-                        {% endif %}
-                        {% for subgroup in profile.teacher.subgroups.all %}
-                            <span class="badge bg-secondary">{{ subgroup }}</span>
-                        {% empty %}
-                            <span class="text-muted">без подгрупп</span>
-                        {% endfor %}
+                        {% with subgroup_names=profile.teacher.subgroups.all %}
+                            {% if subgroup_names %}
+                                {% for subgroup in subgroup_names %}{{ subgroup }}{% if not forloop.last %}, {% endif %}{% endfor %}
+                            {% else %}
+                                <span class="text-muted">без подгрупп</span>
+                            {% endif %}
+                        {% endwith %}
                     {% elif profile.role == 'assistant' %}
                         {{ profile.assistant.subgroup }}
                     {% elif profile.role == 'student' %}
