@@ -11,45 +11,47 @@
         <div class="alert alert-danger">{{ error }}</div>
     {% endif %}
 
-    <table class="table table-bordered align-middle">
-        <thead>
-        <tr>
-            <th>Название</th>
-            <th>Дедлайн отчёта</th>
-            <th>Дедлайн защиты</th>
-            <th>Вес отчёта</th>
-            <th>Вес защиты</th>
-            <th></th>
-        </tr>
-        </thead>
-        <tbody>
-        {% for lab_work in lab_works %}
+    <div class="table-card">
+        <table class="table align-middle">
+            <thead>
             <tr>
-                <td>{{ lab_work.title }}</td>
-                <td>{{ lab_work.report_deadline|date:"d.m.Y" }}</td>
-                <td>{{ lab_work.defense_deadline|date:"d.m.Y" }}</td>
-                <td>{{ lab_work.report_weight }}</td>
-                <td>{{ lab_work.defense_weight }}</td>
-                <td class="text-nowrap">
-                    <a href="{% url 'edit_lab_work' lab_work.pk %}" class="btn btn-sm btn-outline-primary">
-                        Изменить
-                    </a>
-                    <form method="post" class="d-inline"
-                          onsubmit="return confirm('Удалить лабораторную работу? Будут удалены все связанные отчёты, проверки и защиты по ней.');">
-                        {% csrf_token %}
-                        <input type="hidden" name="action" value="delete">
-                        <input type="hidden" name="lab_id" value="{{ lab_work.pk }}">
-                        <button type="submit" class="btn btn-sm btn-outline-danger">Удалить</button>
-                    </form>
-                </td>
+                <th>Название</th>
+                <th>Дедлайн отчёта</th>
+                <th>Дедлайн защиты</th>
+                <th>Вес отчёта</th>
+                <th>Вес защиты</th>
+                <th></th>
             </tr>
-        {% empty %}
-            <tr>
-                <td colspan="6" class="text-muted">Лабораторных работ пока нет.</td>
-            </tr>
-        {% endfor %}
-        </tbody>
-    </table>
+            </thead>
+            <tbody>
+            {% for lab_work in lab_works %}
+                <tr>
+                    <td>{{ lab_work.title }}</td>
+                    <td>{{ lab_work.report_deadline|date:"d.m.Y" }}</td>
+                    <td>{{ lab_work.defense_deadline|date:"d.m.Y" }}</td>
+                    <td>{{ lab_work.report_weight }}</td>
+                    <td>{{ lab_work.defense_weight }}</td>
+                    <td class="text-nowrap">
+                        <a href="{% url 'edit_lab_work' lab_work.pk %}" class="btn btn-sm btn-outline-primary">
+                            Изменить
+                        </a>
+                        <form method="post" class="d-inline"
+                              onsubmit="return confirm('Удалить лабораторную работу? Будут удалены все связанные отчёты, проверки и защиты по ней.');">
+                            {% csrf_token %}
+                            <input type="hidden" name="action" value="delete">
+                            <input type="hidden" name="lab_id" value="{{ lab_work.pk }}">
+                            <button type="submit" class="btn btn-sm btn-outline-danger">Удалить</button>
+                        </form>
+                    </td>
+                </tr>
+            {% empty %}
+                <tr>
+                    <td colspan="6" class="text-muted">Лабораторных работ пока нет.</td>
+                </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
 
     <h5 class="mt-4">Добавить лабораторную работу</h5>
     <form method="post" class="row g-2 align-items-end">

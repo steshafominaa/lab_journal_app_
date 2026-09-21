@@ -13,35 +13,37 @@
         <div class="alert alert-danger">{{ error }}</div>
     {% endif %}
 
-    <table class="table table-bordered align-middle">
-        <thead>
-        <tr>
-            <th>Критерий</th>
-            <th>Макс. балл</th>
-            <th></th>
-        </tr>
-        </thead>
-        <tbody>
-        {% for criterion in criteria %}
+    <div class="table-card">
+        <table class="table align-middle">
+            <thead>
             <tr>
-                <td>{{ criterion.description }}</td>
-                <td>{{ criterion.max_score }}</td>
-                <td>
-                    <form method="post"
-                          onsubmit="return confirm('Удалить критерий? Если он уже использован в проверенных отчётах, удаление будет отклонено.');">
-                        {% csrf_token %}
-                        <input type="hidden" name="delete_id" value="{{ criterion.pk }}">
-                        <button type="submit" class="btn btn-sm btn-outline-danger">Удалить</button>
-                    </form>
-                </td>
+                <th>Критерий</th>
+                <th>Макс. балл</th>
+                <th></th>
             </tr>
-        {% empty %}
-            <tr>
-                <td colspan="3" class="text-muted">Критериев пока нет.</td>
-            </tr>
-        {% endfor %}
-        </tbody>
-    </table>
+            </thead>
+            <tbody>
+            {% for criterion in criteria %}
+                <tr>
+                    <td>{{ criterion.description }}</td>
+                    <td>{{ criterion.max_score }}</td>
+                    <td>
+                        <form method="post"
+                              onsubmit="return confirm('Удалить критерий? Если он уже использован в проверенных отчётах, удаление будет отклонено.');">
+                            {% csrf_token %}
+                            <input type="hidden" name="delete_id" value="{{ criterion.pk }}">
+                            <button type="submit" class="btn btn-sm btn-outline-danger">Удалить</button>
+                        </form>
+                    </td>
+                </tr>
+            {% empty %}
+                <tr>
+                    <td colspan="3" class="text-muted">Критериев пока нет.</td>
+                </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
 
     <h5 class="mt-4">Добавить критерий</h5>
     <form method="post" class="row g-2 align-items-end">

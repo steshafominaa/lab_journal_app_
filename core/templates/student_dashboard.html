@@ -28,7 +28,8 @@
 
     <div class="tab-content">
         <div class="tab-pane fade show active" id="tab-grades">
-            <table class="table table-bordered align-middle">
+            <div class="table-card">
+            <table class="table align-middle">
                 <thead>
                 <tr>
                     <th>Лабораторная работа</th>
@@ -76,10 +77,12 @@
                 {% endfor %}
                 </tbody>
             </table>
+            </div>
         </div>
 
         <div class="tab-pane fade" id="tab-attendance">
-            <table class="table table-bordered align-middle">
+            <div class="table-card">
+            <table class="table align-middle">
                 <thead>
                 <tr>
                     <th>Дата занятия</th>
@@ -105,11 +108,13 @@
                 {% endfor %}
                 </tbody>
             </table>
+            </div>
         </div>
 
         <div class="tab-pane fade" id="tab-summary">
             {% if summary %}
-                <table class="table table-bordered align-middle mb-4">
+                <div class="table-card mb-4">
+                <table class="table align-middle">
                     <tbody>
                     <tr>
                         <th>Средняя оценка за лабораторные</th>
@@ -151,6 +156,7 @@
                     </tr>
                     </tbody>
                 </table>
+                </div>
 
                 {% if summary.auto_pass_eligible %}
                     <p>Вы можете получить оценку за экзамен автоматом (средней оценкой за лабораторные). Согласны?</p>
@@ -172,7 +178,8 @@
 
         <div class="tab-pane fade" id="tab-sick-leave">
             <a href="{% url 'add_sick_leave' %}" class="btn btn-outline-primary mb-3">Загрузить справку</a>
-            <table class="table table-bordered align-middle">
+            <div class="table-card">
+            <table class="table align-middle">
                 <thead>
                 <tr>
                     <th>Файл</th>
@@ -196,6 +203,7 @@
                 {% endfor %}
                 </tbody>
             </table>
+            </div>
         </div>
     </div>
 {% endblock %}

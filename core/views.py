@@ -17,6 +17,8 @@ from .grading import compute_student_summary, compute_report_details, compute_de
 User = get_user_model()
 
 
+# Проверка прав: редактировать данные подгруппы может либо админ, либо преподаватель,
+# который сам ведёт эту подгруппу.
 def _teacher_can_edit_subgroup(teacher, subgroup):
     return teacher.is_admin or (subgroup is not None and subgroup.teacher_id == teacher.pk)
 
@@ -35,18 +37,22 @@ def logout_view(request):
     return redirect('home')
 
 
+# Админ видит всех студентов, обычный преподаватель — только студентов своих подгрупп
 def _visible_students_for_teacher(teacher):
     if teacher.is_admin:
         return Student.objects.select_related('subgroup', 'profile__user')
     return Student.objects.filter(subgroup__in=teacher.subgroups.all()).select_related('subgroup', 'profile__user')
 
 
+# То же самое, но для списка подгрупп (для выпадающего списка фильтра)
 def _visible_subgroups_for_teacher(teacher):
     if teacher.is_admin:
         return Subgroup.objects.order_by('subgroup_name')
     return teacher.subgroups.order_by('subgroup_name')
 
 
+# Если на эту дату у студента подтверждённая справка — нельзя вручную поставить "не был",
+# отметка защищена справкой (используется при сохранении посещаемости)
 def _is_protected_by_confirmed_sick_leave(student, lesson_date):
     return SickLeave.objects.filter(
         student=student,
@@ -56,6 +62,7 @@ def _is_protected_by_confirmed_sick_leave(student, lesson_date):
     ).exists()
 
 
+# Куда отправить пользователя сразу после входа — зависит от его роли
 @login_required
 def login_redirect_view(request):
     profile = request.user.profile
@@ -70,6 +77,8 @@ def login_redirect_view(request):
     return redirect('admin:index')
 
 
+# Страница администратора: список подгрупп + форма создания новой подгруппы.
+# Тут же обрабатывается удаление подгруппы (через POST action=delete).
 @login_required
 def manage_subgroups(request):
     admin_teacher = _require_admin(request)
@@ -109,6 +118,7 @@ def manage_subgroups(request):
     return render(request, 'manage_subgroups.html', context)
 
 
+# Форма редактирования одной подгруппы (название + преподаватель)
 @login_required
 def edit_subgroup(request, pk):
     if not _require_admin(request):
@@ -136,6 +146,7 @@ def edit_subgroup(request, pk):
     return render(request, 'edit_subgroup.html', context)
 
 
+# Список всех пользователей для администратора + удаление пользователя
 @login_required
 def manage_users(request):
     if not _require_admin(request):
@@ -164,6 +175,8 @@ def manage_users(request):
     return render(request, 'manage_users.html', context)
 
 
+# Создание нового пользователя (студент/ассистент/преподаватель) администратором.
+# Тут же в одной транзакции создаётся и User, и Profile, и роль (Student/Assistant/Teacher).
 @login_required
 def create_user(request):
     if not _require_admin(request):
@@ -210,6 +223,7 @@ def create_user(request):
     return render(request, 'create_user.html', context)
 
 
+# Редактирование существующего пользователя: ФИО, пароль (если ввели новый), подгруппа/права
 @login_required
 def edit_user(request, pk):
     if not _require_admin(request):
@@ -262,6 +276,8 @@ def edit_user(request, pk):
     return render(request, 'edit_user.html', context)
 
 
+# Проверка данных при создании/редактировании лабораторной работы:
+# заполнены поля, веса — числа, сумма весов отчёта и защиты равна 1
 def _validate_lab_work_fields(title, report_deadline, defense_deadline, report_weight, defense_weight):
     if not title or not report_deadline or not defense_deadline:
         return 'Заполните название и оба дедлайна.'
@@ -277,6 +293,7 @@ def _validate_lab_work_fields(title, report_deadline, defense_deadline, report_w
     return None
 
 
+# Список лабораторных работ для админа + форма добавления новой
 @login_required
 def manage_lab_works(request):
     if not _require_admin(request):
@@ -312,6 +329,7 @@ def manage_lab_works(request):
     return render(request, 'manage_lab_works.html', context)
 
 
+# Редактирование одной лабораторной работы
 @login_required
 def edit_lab_work(request, pk):
     if not _require_admin(request):
@@ -344,6 +362,9 @@ def edit_lab_work(request, pk):
     return render(request, 'edit_lab_work.html', context)
 
 
+# Главная страница преподавателя: доска со всеми подгруппами, студентами и лабами.
+# Для каждого студента и каждой лабы собираем клетку с отчётом/защитой/проверкой,
+# чтобы в шаблоне просто вывести карточки (это и есть "красивые таблицы" на главной).
 @login_required
 def teacher_dashboard(request):
     teacher = request.user.profile.teacher
@@ -351,6 +372,8 @@ def teacher_dashboard(request):
     lab_works = list(LaboratoryWork.objects.all())
     students = Student.objects.filter(subgroup__in=subgroups).select_related('subgroup')
 
+    # Заранее вытаскиваем все отчёты/защиты/проверки одним запросом каждый,
+    # чтобы не делать отдельный запрос в базу на каждую пару студент+лаба (было бы очень медленно)
     reports = {
         (report.student_id, report.lab_work_id): report
         for report in LabReport.objects.filter(student__in=students)
@@ -409,6 +432,7 @@ def teacher_dashboard(request):
     return render(request, 'teacher_dashboard.html', context)
 
 
+# Преподаватель/ассистент отмечает дату, когда студент сдал отчёт
 @login_required
 def set_report_date(request, lab_id):
     teacher = request.user.profile.teacher
@@ -430,6 +454,7 @@ def set_report_date(request, lab_id):
     return render(request, 'set_report_date.html', context)
 
 
+# Преподаватель выставляет дату защиты, оценку и комментарий по конкретному отчёту
 @login_required
 def set_defense(request, student_id, lab_id):
     teacher = request.user.profile.teacher
@@ -461,6 +486,8 @@ def set_defense(request, student_id, lab_id):
     return render(request, 'set_defense.html', context)
 
 
+# Таблица посещаемости, где можно отмечать статус (был/не был/болел) по датам занятий.
+# GET — просто показывает таблицу, POST — сохраняет все изменённые отметки сразу.
 @login_required
 def attendance_dashboard(request):
     teacher = request.user.profile.teacher
@@ -481,6 +508,7 @@ def attendance_dashboard(request):
     }
 
     if request.method == 'POST':
+        # Форма шлёт кучу полей вида status_<id_студента>_<дата>, разбираем их по одному
         for key, value in request.POST.items():
             if key.startswith('status_'):
                 _, student_id, lesson_date = key.split('_', 2)
@@ -490,6 +518,7 @@ def attendance_dashboard(request):
                 ).first()
                 current_status = current.status if current else None
 
+                # Не даём случайно снять статус "болел" на "не был", если это закрыто справкой
                 if current_status == 'Б' and value == 'Н':
                     student_obj = get_object_or_404(Student, pk=student_id)
                     if _is_protected_by_confirmed_sick_leave(student_obj, lesson_date):
@@ -521,6 +550,7 @@ def attendance_dashboard(request):
     return render(request, 'attendance_dashboard.html', context)
 
 
+# Отчёт по посещаемости (только для просмотра) со скачиванием в CSV
 @login_required
 def attendance_report(request):
     teacher = request.user.profile.teacher
@@ -552,6 +582,8 @@ def attendance_report(request):
             'missed_count': sum(1 for s in statuses if s in ('Н', 'Б')),
         })
 
+    # Если в адресе есть ?export=csv — отдаём файл для скачивания вместо обычной страницы.
+    # '\ufeff' в начале — это BOM, без него Excel неправильно показывает русские буквы.
     if request.GET.get('export') == 'csv':
         response = HttpResponse(content_type='text/csv')
         response['Content-Disposition'] = 'attachment; filename="attendance_report.csv"'
@@ -578,6 +610,8 @@ def attendance_report(request):
     return render(request, 'attendance_report.html', context)
 
 
+# Отчёт по успеваемости: для каждого студента и каждой лабы — баллы за отчёт/защиту/итог,
+# плюс средняя оценка, экзамен и итоговая оценка по дисциплине. Тоже можно скачать в CSV.
 @login_required
 def performance_report(request):
     teacher = request.user.profile.teacher
@@ -652,6 +686,7 @@ def performance_report(request):
     return render(request, 'performance_report.html', context)
 
 
+# Отчёт по должникам: у кого просрочен отчёт или защита и дедлайн уже прошёл
 @login_required
 def debtors_report(request):
     teacher = request.user.profile.teacher
@@ -682,6 +717,7 @@ def debtors_report(request):
         for lab_work in lab_works:
             report = reports_by_key.get((student.pk, lab_work.pk))
 
+            # Дедлайн отчёта прошёл, а отчёт не сдан — это долг
             if lab_work.report_deadline < today and (not report or not report.submitted_at):
                 student_debts.append({
                     'lab_work': lab_work,
@@ -689,6 +725,7 @@ def debtors_report(request):
                     'deadline': lab_work.report_deadline,
                 })
 
+            # Дедлайн защиты прошёл, а оценки за защиту нет — тоже долг
             defense = defenses_by_report_id.get(report.pk) if report else None
             if lab_work.defense_deadline < today and (not defense or defense.score is None):
                 student_debts.append({
@@ -732,12 +769,15 @@ def debtors_report(request):
     return render(request, 'debtors_report.html', context)
 
 
+# Просто страница со ссылками на все отчёты
 @login_required
 def reports_hub(request):
     teacher = request.user.profile.teacher
     return render(request, 'reports_hub.html', {'is_admin': teacher.is_admin})
 
 
+# Добавляет новую дату занятия и сразу создаёт пустые (без статуса) отметки посещаемости
+# для всех видимых преподавателю студентов, чтобы дата появилась в таблице посещаемости
 @login_required
 def add_lesson_date(request):
     teacher = request.user.profile.teacher
@@ -758,6 +798,7 @@ def add_lesson_date(request):
     return render(request, 'add_lesson_date.html')
 
 
+# Студент загружает файл со справкой (дальше преподаватель проставит даты и статус)
 @login_required
 def add_sick_leave(request):
     student = request.user.profile.student
@@ -769,6 +810,7 @@ def add_sick_leave(request):
     return render(request, 'add_sick_leave.html')
 
 
+# Список всех загруженных справок для преподавателя, чтобы их рассмотреть
 @login_required
 def sick_leave_dashboard(request):
     teacher = request.user.profile.teacher
@@ -796,6 +838,8 @@ def review_sick_leave(request, sick_leave_id):
         sick_leave.status = request.POST.get('status')
         sick_leave.save()
 
+        # Если справку подтвердили — все "не был" за этот период автоматически
+        # меняем на "болел", чтобы это не считалось прогулом
         if sick_leave.status == 'подтверждена' and sick_leave.start_date and sick_leave.end_date:
             Attendance.objects.filter(
                 student=sick_leave.student,
@@ -809,6 +853,8 @@ def review_sick_leave(request, sick_leave_id):
     return render(request, 'review_sick_leave.html', {'sick_leave': sick_leave})
 
 
+# Итоги по дисциплине для преподавателя: тут выставляют бонусные баллы
+# и оценку за экзамен (если студент не идёт автоматом)
 @login_required
 def results_dashboard(request):
     teacher = request.user.profile.teacher
@@ -842,6 +888,7 @@ def results_dashboard(request):
     return render(request, 'results_dashboard.html', context)
 
 
+# Настройки дисциплины (веса лаб и экзамена в итоговой оценке). Одна строка настроек на всех.
 @login_required
 def discipline_settings_view(request):
     teacher = request.user.profile.teacher
@@ -869,6 +916,8 @@ def discipline_settings_view(request):
 
     return render(request, 'discipline_settings.html', {'settings': settings_row, 'error': error})
 
+# Критерии оценивания отчёта (по ним ассистент проверяет отчёты). Сумма всех
+# максимальных баллов не может быть больше 8 — это ограничение проверяется тут.
 @login_required
 def criteria_management(request):
     teacher = request.user.profile.teacher
@@ -906,6 +955,7 @@ def criteria_management(request):
     context = {'criteria': criteria, 'total_max': total_max, 'error': error}
     return render(request, 'criteria_management.html', context)
 
+# Студент соглашается или отказывается от "автомата" (оценка за экзамен = средний балл за лабы)
 @login_required
 def set_auto_pass_agree(request):
     student = request.user.profile.student
@@ -920,6 +970,7 @@ def set_auto_pass_agree(request):
     return redirect('student_dashboard')
 
 
+# Личный кабинет студента: его оценки по лабам, посещаемость, итог по дисциплине и справки
 @login_required
 def student_dashboard(request):
     student = request.user.profile.student
@@ -967,6 +1018,7 @@ def student_dashboard(request):
     return render(request, 'student_dashboard.html', context)
 
 
+# Личный кабинет ассистента: список студентов его подгруппы и статус проверки их отчётов
 @login_required
 def assistant_dashboard(request):
     assistant = request.user.profile.assistant
@@ -995,6 +1047,7 @@ def assistant_dashboard(request):
     return render(request, 'assistant_dashboard.html', context)
 
 
+# Ассистент проверяет отчёт: выставляет баллы по каждому критерию и пишет комментарий
 @login_required
 def review_report(request, student_id, lab_id):
     assistant = request.user.profile.assistant
@@ -1034,6 +1087,8 @@ def review_report(request, student_id, lab_id):
     return render(request, 'review_report.html', context)
 
 
+# То же самое, что review_report, но со стороны преподавателя — он может
+# перепроверить/поправить уже выставленные ассистентом баллы за отчёт
 @login_required
 def teacher_review_report(request, student_id, lab_id):
     teacher = request.user.profile.teacher

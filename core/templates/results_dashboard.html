@@ -24,7 +24,8 @@
     <form method="post">
         {% csrf_token %}
         <input type="hidden" name="subgroup" value="{{ selected_subgroup_id }}">
-        <table class="table table-bordered align-middle">
+        <div class="table-card">
+        <table class="table align-middle">
             <thead>
             <tr>
                 <th>Студент</th>
@@ -88,6 +89,7 @@
             {% endfor %}
             </tbody>
         </table>
+        </div>
         <button type="submit" class="btn btn-primary">Сохранить бонусы и экзамен</button>
     </form>
 {% endblock %}

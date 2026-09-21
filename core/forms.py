@@ -2,6 +2,9 @@ from django import forms
 from django.contrib.auth.forms import AuthenticationForm
 
 
+# Django по умолчанию логинит по username, а у нас пользователи вводят email.
+# Эта форма просто меняет поле username на EmailField, чтобы на странице входа
+# было поле "Email", а не "Имя пользователя".
 class EmailAuthenticationForm(AuthenticationForm):
     """Форма входа по email вместо username."""
 

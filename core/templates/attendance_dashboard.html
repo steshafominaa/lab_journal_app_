@@ -28,38 +28,40 @@
         <form method="post">
             {% csrf_token %}
             <input type="hidden" name="subgroup" value="{{ selected_subgroup_id }}">
-            <table class="table table-bordered align-middle">
-                <thead>
-                <tr>
-                    <th>Студент</th>
-                    <th>Подгруппа</th>
-                    {% for lesson_date in lesson_dates %}
-                        <th>{{ lesson_date|date:"d.m.Y" }}</th>
-                    {% endfor %}
-                </tr>
-                </thead>
-                <tbody>
-                {% for row in rows %}
+            <div class="table-card">
+                <table class="table align-middle">
+                    <thead>
                     <tr>
-                        <td>{{ row.student }}</td>
-                        <td>{{ row.student.subgroup }}</td>
-                        {% for cell in row.cells %}
-                            <td>
-                                <select name="status_{{ row.student.pk }}_{{ cell.lesson_date|date:'Y-m-d' }}"
-                                        class="form-select form-select-sm">
-                                    <option value="" {% if not cell.status %}selected{% endif %}>—</option>
-                                    {% for value, label in status_choices %}
-                                        <option value="{{ value }}" {% if cell.status == value %}selected{% endif %}>
-                                            {{ label }}
-                                        </option>
-                                    {% endfor %}
-                                </select>
-                            </td>
+                        <th>Студент</th>
+                        <th>Подгруппа</th>
+                        {% for lesson_date in lesson_dates %}
+                            <th>{{ lesson_date|date:"d.m.Y" }}</th>
                         {% endfor %}
                     </tr>
-                {% endfor %}
-                </tbody>
-            </table>
+                    </thead>
+                    <tbody>
+                    {% for row in rows %}
+                        <tr>
+                            <td>{{ row.student }}</td>
+                            <td>{{ row.student.subgroup }}</td>
+                            {% for cell in row.cells %}
+                                <td>
+                                    <select name="status_{{ row.student.pk }}_{{ cell.lesson_date|date:'Y-m-d' }}"
+                                            class="form-select form-select-sm">
+                                        <option value="" {% if not cell.status %}selected{% endif %}>—</option>
+                                        {% for value, label in status_choices %}
+                                            <option value="{{ value }}" {% if cell.status == value %}selected{% endif %}>
+                                                {{ label }}
+                                            </option>
+                                        {% endfor %}
+                                    </select>
+                                </td>
+                            {% endfor %}
+                        </tr>
+                    {% endfor %}
+                    </tbody>
+                </table>
+            </div>
             <button type="submit" class="btn btn-primary">Сохранить посещаемость</button>
         </form>
     {% else %}

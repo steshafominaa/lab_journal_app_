@@ -11,39 +11,41 @@
         <div class="alert alert-danger">{{ error }}</div>
     {% endif %}
 
-    <table class="table table-bordered align-middle">
-        <thead>
-        <tr>
-            <th>Название</th>
-            <th>Преподаватель</th>
-            <th></th>
-        </tr>
-        </thead>
-        <tbody>
-        {% for subgroup in subgroups %}
+    <div class="table-card">
+        <table class="table align-middle">
+            <thead>
             <tr>
-                <td>{{ subgroup.subgroup_name }}</td>
-                <td>{{ subgroup.teacher }}{% if subgroup.teacher.is_admin %} (админ){% endif %}</td>
-                <td class="text-nowrap">
-                    <a href="{% url 'edit_subgroup' subgroup.pk %}" class="btn btn-sm btn-outline-primary">
-                        Изменить
-                    </a>
-                    <form method="post" class="d-inline"
-                          onsubmit="return confirm('Удалить подгруппу? Это возможно только если в ней нет студентов и ассистентов.');">
-                        {% csrf_token %}
-                        <input type="hidden" name="action" value="delete">
-                        <input type="hidden" name="subgroup_id" value="{{ subgroup.pk }}">
-                        <button type="submit" class="btn btn-sm btn-outline-danger">Удалить</button>
-                    </form>
-                </td>
+                <th>Название</th>
+                <th>Преподаватель</th>
+                <th></th>
             </tr>
-        {% empty %}
-            <tr>
-                <td colspan="3" class="text-muted">Подгрупп пока нет.</td>
-            </tr>
-        {% endfor %}
-        </tbody>
-    </table>
+            </thead>
+            <tbody>
+            {% for subgroup in subgroups %}
+                <tr>
+                    <td>{{ subgroup.subgroup_name }}</td>
+                    <td>{{ subgroup.teacher }}{% if subgroup.teacher.is_admin %} (админ){% endif %}</td>
+                    <td class="text-nowrap">
+                        <a href="{% url 'edit_subgroup' subgroup.pk %}" class="btn btn-sm btn-outline-primary">
+                            Изменить
+                        </a>
+                        <form method="post" class="d-inline"
+                              onsubmit="return confirm('Удалить подгруппу? Это возможно только если в ней нет студентов и ассистентов.');">
+                            {% csrf_token %}
+                            <input type="hidden" name="action" value="delete">
+                            <input type="hidden" name="subgroup_id" value="{{ subgroup.pk }}">
+                            <button type="submit" class="btn btn-sm btn-outline-danger">Удалить</button>
+                        </form>
+                    </td>
+                </tr>
+            {% empty %}
+                <tr>
+                    <td colspan="3" class="text-muted">Подгрупп пока нет.</td>
+                </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
 
     <h5 class="mt-4">Добавить подгруппу</h5>
     <form method="post" class="row g-2 align-items-end">

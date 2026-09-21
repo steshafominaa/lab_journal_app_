@@ -31,8 +31,9 @@
     </form>
 
     {% if rows %}
+        <div class="table-card">
         <div class="table-responsive">
-            <table class="table table-bordered align-middle">
+            <table class="table align-middle">
                 <thead>
                 <tr>
                     <th style="width: 30%">Студент</th>
@@ -62,6 +63,7 @@
                 {% endfor %}
                 </tbody>
             </table>
+        </div>
         </div>
     {% else %}
         <p class="text-muted">Должников нет — все сдали работы в срок.</p>

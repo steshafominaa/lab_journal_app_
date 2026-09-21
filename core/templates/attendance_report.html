@@ -28,8 +28,9 @@
     </form>
 
     {% if lesson_dates %}
+        <div class="table-card">
         <div class="table-responsive">
-            <table class="table table-bordered align-middle text-center">
+            <table class="table align-middle text-center">
                 <thead>
                 <tr>
                     <th rowspan="2" class="align-middle">Студент</th>
@@ -56,6 +57,7 @@
                 {% endfor %}
                 </tbody>
             </table>
+        </div>
         </div>
     {% else %}
         <p class="text-muted">Пока не добавлено ни одной даты занятия.</p>
