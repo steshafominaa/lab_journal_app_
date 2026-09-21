@@ -1,12 +1,10 @@
-<!DOCTYPE html>
-<html lang="ru">
-<head>
-    <meta charset="UTF-8">
-    <title>Дата сдачи отчёта</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
-</head>
-<body>
-<div class="container" style="max-width: 400px; margin-top: 100px;">
+{% extends 'base.html' %}
+
+{% block title %}Дата сдачи отчёта{% endblock %}
+
+{% block card_class %}content-card--narrow{% endblock %}
+
+{% block content %}
     <h4>{{ student }} — {{ lab_work }}</h4>
     <p class="text-muted">
         Дедлайн отчёта: <strong>{{ lab_work.report_deadline|date:"d.m.Y" }}</strong>
@@ -23,8 +21,9 @@
         <button type="submit" class="btn btn-primary">Сохранить</button>
         <a href="{% url 'teacher_dashboard' %}" class="btn btn-outline-secondary">Назад</a>
     </form>
-</div>
+{% endblock %}
 
+{% block extra_js %}
 <script>
     const input = document.getElementById('submitted_at');
     const warning = document.getElementById('lateWarning');
@@ -53,5 +52,4 @@
     input.addEventListener('input', updateWarning);
     updateWarning();
 </script>
-</body>
-</html>
+{% endblock %}

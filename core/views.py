@@ -729,6 +729,12 @@ def debtors_report(request):
 
 
 @login_required
+def reports_hub(request):
+    teacher = request.user.profile.teacher
+    return render(request, 'reports_hub.html', {'is_admin': teacher.is_admin})
+
+
+@login_required
 def add_lesson_date(request):
     teacher = request.user.profile.teacher
     if teacher.is_admin:
