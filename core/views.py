@@ -1,5 +1,6 @@
-import csv
 from datetime import date
+from openpyxl import Workbook
+from openpyxl.utils import get_column_letter
 from django.contrib.auth import get_user_model, logout
 from django.contrib.auth.decorators import login_required
 from django.db import IntegrityError, transaction
@@ -12,9 +13,36 @@ from .models import (
     LaboratoryWork, LabReport, Student, Criterion, ReportReview, CriterionResult, Defense,
     Attendance, SickLeave, DisciplineResult, DisciplineSettings, Subgroup, Profile, Teacher, Assistant,
 )
-from .grading import compute_student_summary, compute_report_details, compute_defense_details
+from .grading import (
+    compute_student_summary, compute_report_details, compute_defense_details, compute_lab_grade,
+)
 
 User = get_user_model()
+
+
+# Записывает список строк (каждая строка — список ячеек) в новый лист книги openpyxl
+# и настраивает ширину столбцов по самому длинному значению в каждом из них.
+def _write_xlsx_sheet(worksheet, rows):
+    for row in rows:
+        worksheet.append(row)
+    widths = {}
+    for row in rows:
+        for col_index, value in enumerate(row, start=1):
+            text = '' if value is None else str(value)
+            widths[col_index] = max(widths.get(col_index, 0), len(text))
+    for col_index, width in widths.items():
+        worksheet.column_dimensions[get_column_letter(col_index)].width = min(max(width + 2, 10), 40)
+
+
+def _xlsx_response(filename, rows):
+    workbook = Workbook()
+    _write_xlsx_sheet(workbook.active, rows)
+    response = HttpResponse(
+        content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+    )
+    response['Content-Disposition'] = f'attachment; filename="{filename}"'
+    workbook.save(response)
+    return response
 
 
 # Проверка прав: редактировать данные подгруппы может либо админ, либо преподаватель,
@@ -37,18 +65,21 @@ def logout_view(request):
     return redirect('home')
 
 
-# Админ видит всех студентов, обычный преподаватель — только студентов своих подгрупп
+# Видеть данные могут все преподаватели по всем подгруппам (независимо от того, админ или нет).
+# Редактировать — только свои подгруппы, это отдельно проверяется через _teacher_can_edit_subgroup.
 def _visible_students_for_teacher(teacher):
-    if teacher.is_admin:
-        return Student.objects.select_related('subgroup', 'profile__user')
-    return Student.objects.filter(subgroup__in=teacher.subgroups.all()).select_related('subgroup', 'profile__user')
+    return Student.objects.select_related('subgroup', 'profile__user')
 
 
 # То же самое, но для списка подгрупп (для выпадающего списка фильтра)
 def _visible_subgroups_for_teacher(teacher):
-    if teacher.is_admin:
-        return Subgroup.objects.order_by('subgroup_name')
-    return teacher.subgroups.order_by('subgroup_name')
+    return Subgroup.objects.order_by('subgroup_name')
+
+
+# Подгруппы, которыми преподаватель владеет сам (используется там, где разрешено
+# только собственноручное управление — например, добавление дат занятий)
+def _own_subgroups_for_teacher(teacher):
+    return Subgroup.objects.filter(teacher=teacher).order_by('subgroup_name')
 
 
 # Если на эту дату у студента подтверждённая справка — нельзя вручную поставить "не был",
@@ -325,7 +356,26 @@ def manage_lab_works(request):
                 error = 'Лабораторная работа с таким названием уже существует.'
 
     lab_works = LaboratoryWork.objects.order_by('report_deadline')
-    context = {'lab_works': lab_works, 'error': error}
+
+    # Для каждой лабораторной — средние баллы за отчёт/защиту/итог по всем студентам дисциплины
+    students = list(Student.objects.all())
+    lab_rows = []
+    for lab_work in lab_works:
+        if students:
+            grades = [compute_lab_grade(student, lab_work) for student in students]
+            avg_report = sum(g['report_score'] for g in grades) / len(grades)
+            avg_defense = sum(g['defense_score'] for g in grades) / len(grades)
+            avg_lab = sum(g['lab_score'] for g in grades) / len(grades)
+        else:
+            avg_report = avg_defense = avg_lab = None
+        lab_rows.append({
+            'lab_work': lab_work,
+            'avg_report': avg_report,
+            'avg_defense': avg_defense,
+            'avg_lab': avg_lab,
+        })
+
+    context = {'lab_works': lab_works, 'lab_rows': lab_rows, 'error': error}
     return render(request, 'manage_lab_works.html', context)
 
 
@@ -494,9 +544,15 @@ def attendance_dashboard(request):
     subgroups = _visible_subgroups_for_teacher(teacher)
 
     selected_subgroup_id = request.POST.get('subgroup') or request.GET.get('subgroup') or ''
-    students = _visible_students_for_teacher(teacher)
+    students_qs = _visible_students_for_teacher(teacher)
     if selected_subgroup_id:
-        students = students.filter(subgroup_id=selected_subgroup_id)
+        students_qs = students_qs.filter(subgroup_id=selected_subgroup_id)
+    students = list(students_qs)
+
+    # id студентов, отметки которых этому преподавателю разрешено менять
+    editable_student_ids = {
+        s.pk for s in students if _teacher_can_edit_subgroup(teacher, s.subgroup)
+    }
 
     lesson_dates = sorted(set(
         Attendance.objects.filter(student__in=students).values_list('lesson_date', flat=True)
@@ -512,6 +568,10 @@ def attendance_dashboard(request):
         for key, value in request.POST.items():
             if key.startswith('status_'):
                 _, student_id, lesson_date = key.split('_', 2)
+
+                # Преподаватель может менять отметки только в своих подгруппах
+                if int(student_id) not in editable_student_ids:
+                    continue
 
                 current = Attendance.objects.filter(
                     student_id=student_id, lesson_date=lesson_date
@@ -533,12 +593,29 @@ def attendance_dashboard(request):
         return redirect('attendance_dashboard')
 
     rows = []
+    total_present = total_absent = total_sick = 0
     for student in students:
         cells = []
         for lesson_date in lesson_dates:
             record = records.get((student.pk, lesson_date))
-            cells.append({'lesson_date': lesson_date, 'status': record.status if record else ''})
-        rows.append({'student': student, 'cells': cells})
+            status = record.status if record else ''
+            cells.append({'lesson_date': lesson_date, 'status': status})
+            if status == 'П':
+                total_present += 1
+            elif status == 'Н':
+                total_absent += 1
+            elif status == 'Б':
+                total_sick += 1
+        rows.append({
+            'student': student,
+            'cells': cells,
+            'editable': student.pk in editable_student_ids,
+        })
+
+    student_count = len(students)
+    avg_present = total_present / student_count if student_count else None
+    avg_absent = total_absent / student_count if student_count else None
+    avg_sick = total_sick / student_count if student_count else None
 
     context = {
         'lesson_dates': lesson_dates,
@@ -546,6 +623,9 @@ def attendance_dashboard(request):
         'status_choices': Attendance.STATUS_CHOICES,
         'subgroups': subgroups,
         'selected_subgroup_id': selected_subgroup_id,
+        'avg_present': avg_present,
+        'avg_absent': avg_absent,
+        'avg_sick': avg_sick,
     }
     return render(request, 'attendance_dashboard.html', context)
 
@@ -582,24 +662,19 @@ def attendance_report(request):
             'missed_count': sum(1 for s in statuses if s in ('Н', 'Б')),
         })
 
-    # Если в адресе есть ?export=csv — отдаём файл для скачивания вместо обычной страницы.
-    # '\ufeff' в начале — это BOM, без него Excel неправильно показывает русские буквы.
-    if request.GET.get('export') == 'csv':
-        response = HttpResponse(content_type='text/csv')
-        response['Content-Disposition'] = 'attachment; filename="attendance_report.csv"'
-        response.write('\ufeff')
-        writer = csv.writer(response, delimiter=';')
-        writer.writerow(['Отчет по посещаемости'])
-        writer.writerow(
-            ['Студент'] + [d.strftime('%d.%m.') for d in lesson_dates] + ['Присутствовал', 'Пропущено']
-        )
+    # Если в адресе есть ?export=xlsx — отдаём файл для скачивания вместо обычной страницы.
+    if request.GET.get('export') == 'xlsx':
+        sheet_rows = [
+            ['Отчет по посещаемости'],
+            ['Студент'] + [d.strftime('%d.%m.') for d in lesson_dates] + ['Присутствовал', 'Пропущено'],
+        ]
         for row in rows:
-            writer.writerow(
+            sheet_rows.append(
                 [row['student'].profile.full_name()]
                 + [cell or '' for cell in row['cells']]
                 + [row['present_count'], row['missed_count']]
             )
-        return response
+        return _xlsx_response('attendance_report.xlsx', sheet_rows)
 
     context = {
         'subgroups': subgroups,
@@ -642,13 +717,7 @@ def performance_report(request):
                 })
         rows.append({'student': student, 'summary': summary, 'lab_cells': lab_cells})
 
-    if request.GET.get('export') == 'csv':
-        response = HttpResponse(content_type='text/csv')
-        response['Content-Disposition'] = 'attachment; filename="performance_report.csv"'
-        response.write('\ufeff')
-        writer = csv.writer(response, delimiter=';')
-        writer.writerow(['Отчет по успеваемости'])
-
+    if request.GET.get('export') == 'xlsx':
         header_top = ['Студент']
         header_bottom = ['']
         for index, _lab_work in enumerate(lab_works, start=1):
@@ -656,8 +725,8 @@ def performance_report(request):
             header_bottom += ['Отчет', 'Защита', 'Итог']
         header_top += ['Итог за ЛР', 'Экзамен', 'Итог']
         header_bottom += ['', '', '']
-        writer.writerow(header_top)
-        writer.writerow(header_bottom)
+
+        sheet_rows = [['Отчет по успеваемости'], header_top, header_bottom]
 
         for row in rows:
             line = [row['student'].profile.full_name()]
@@ -670,12 +739,12 @@ def performance_report(request):
             summary = row['summary']
             if summary:
                 line.append(f"{summary['average_lab_score']:.2f}")
-                line.append(f"{summary['exam_score']:.2f}" if summary['exam_score'] is not None else '')
-                line.append(f"{summary['final_score']:.2f}" if summary['final_score'] is not None else '')
+                line.append(f"{summary['exam_score']:.2f}" if summary['exam_score'] is not None else '—')
+                line.append(f"{summary['final_score']:.2f}" if summary['final_score'] is not None else '—')
             else:
-                line += ['', '', '']
-            writer.writerow(line)
-        return response
+                line += ['—', '—', '—']
+            sheet_rows.append(line)
+        return _xlsx_response('performance_report.xlsx', sheet_rows)
 
     context = {
         'subgroups': subgroups,
@@ -742,23 +811,21 @@ def debtors_report(request):
         for student, debts in debts_by_student.items()
     ]
 
-    if request.GET.get('export') == 'csv':
-        response = HttpResponse(content_type='text/csv')
-        response['Content-Disposition'] = 'attachment; filename="debtors_report.csv"'
-        response.write('\ufeff')
-        writer = csv.writer(response, delimiter=';')
-        writer.writerow([f'Отчет по должникам на {today.strftime("%d.%m.%Y")}'])
-        writer.writerow(['Студент', 'Подгруппа', 'Лабораторная работа', 'Не сдано', 'Дедлайн'])
+    if request.GET.get('export') == 'xlsx':
+        sheet_rows = [
+            [f'Отчет по должникам на {today.strftime("%d.%m.%Y")}'],
+            ['Студент', 'Подгруппа', 'Лабораторная работа', 'Не сдано', 'Дедлайн'],
+        ]
         for row in rows:
             for debt in row['debts']:
-                writer.writerow([
+                sheet_rows.append([
                     row['student'].profile.full_name(),
                     row['student'].subgroup.subgroup_name,
                     debt['lab_work'].title,
                     debt['type'],
                     debt['deadline'].strftime('%d.%m.%Y'),
                 ])
-        return response
+        return _xlsx_response('debtors_report.xlsx', sheet_rows)
 
     context = {
         'subgroups': subgroups,
@@ -776,26 +843,28 @@ def reports_hub(request):
     return render(request, 'reports_hub.html', {'is_admin': teacher.is_admin})
 
 
-# Добавляет новую дату занятия и сразу создаёт пустые (без статуса) отметки посещаемости
-# для всех видимых преподавателю студентов, чтобы дата появилась в таблице посещаемости
+# Добавляет новую дату занятия и создаёт пустые (без статуса) отметки посещаемости
+# для студентов ОДНОЙ выбранной подгруппы. Каждый преподаватель, включая администратора,
+# может добавлять даты только для своих собственных подгрупп, и только по одной за раз.
 @login_required
 def add_lesson_date(request):
     teacher = request.user.profile.teacher
-    if teacher.is_admin:
-        students = Student.objects.all()
-    else:
-        students = Student.objects.filter(subgroup__in=teacher.subgroups.all())
+    own_subgroups = _own_subgroups_for_teacher(teacher)
 
+    error = None
     if request.method == 'POST':
         lesson_date = request.POST.get('lesson_date')
-        if lesson_date:
-            for student in students:
+        subgroup = own_subgroups.filter(pk=request.POST.get('subgroup_id')).first()
+        if not lesson_date or not subgroup:
+            error = 'Выберите свою подгруппу и дату занятия.'
+        else:
+            for student in Student.objects.filter(subgroup=subgroup):
                 Attendance.objects.get_or_create(
                     student=student, lesson_date=lesson_date, defaults={'status': None}
                 )
-        return redirect('attendance_dashboard')
+            return redirect(f"{reverse('attendance_dashboard')}?subgroup={subgroup.pk}")
 
-    return render(request, 'add_lesson_date.html')
+    return render(request, 'add_lesson_date.html', {'subgroups': own_subgroups, 'error': error})
 
 
 # Студент загружает файл со справкой (дальше преподаватель проставит даты и статус)
@@ -867,6 +936,9 @@ def results_dashboard(request):
 
     if request.method == 'POST':
         for student in students:
+            # Бонусы и экзамен можно менять только своим подгруппам (админу — любым)
+            if not _teacher_can_edit_subgroup(teacher, student.subgroup):
+                continue
             result, _ = DisciplineResult.objects.get_or_create(student=student)
             bonus_key = f'bonus_{student.pk}'
             exam_key = f'exam_{student.pk}'
@@ -880,11 +952,25 @@ def results_dashboard(request):
         return redirect('results_dashboard')
 
     rows = []
+    final_scores = []
     for student in students:
         summary = compute_student_summary(student)
-        rows.append({'student': student, 'summary': summary})
+        rows.append({
+            'student': student,
+            'summary': summary,
+            'editable': _teacher_can_edit_subgroup(teacher, student.subgroup),
+        })
+        if summary and summary['final_score'] is not None:
+            final_scores.append(summary['final_score'])
 
-    context = {'rows': rows, 'subgroups': subgroups, 'selected_subgroup_id': selected_subgroup_id}
+    avg_final_score = sum(final_scores) / len(final_scores) if final_scores else None
+
+    context = {
+        'rows': rows,
+        'subgroups': subgroups,
+        'selected_subgroup_id': selected_subgroup_id,
+        'avg_final_score': avg_final_score,
+    }
     return render(request, 'results_dashboard.html', context)
 
 

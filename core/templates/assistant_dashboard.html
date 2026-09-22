@@ -28,13 +28,13 @@
                     {% for cell in row.cells %}
                         <td>
                             {% if not cell.report %}
-                                <span class="text-muted">отчёт не сдан</span>
+                                <span class="text-muted">—</span>
                             {% else %}
                                 <div>Сдан: {{ cell.report.submitted_at|date:"d.m.Y" }}</div>
                                 {% if cell.review %}
                                     <div>Проверено</div>
                                 {% else %}
-                                    <div class="text-muted">не проверено</div>
+                                    <div class="text-muted">—</div>
                                 {% endif %}
                                 <a href="{% url 'review_report' row.student.pk cell.lab_work.pk %}"
                                    class="btn btn-sm btn-outline-primary mt-1">

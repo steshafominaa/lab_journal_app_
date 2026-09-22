@@ -48,7 +48,7 @@
                             {% if row.report and row.report.submitted_at %}
                                 {{ row.report.submitted_at|date:"d.m.Y" }}
                             {% else %}
-                                <span class="text-muted">не сдан</span>
+                                <span class="text-muted">—</span>
                             {% endif %}
                         </td>
                         <td>
@@ -58,7 +58,7 @@
                                     <br><span class="text-danger small">(штраф: -{{ row.report_details.penalty|floatformat:2 }})</span>
                                 {% endif %}
                             {% else %}
-                                <span class="text-muted">не проверено</span>
+                                <span class="text-muted">—</span>
                             {% endif %}
                         </td>
                         <td>{{ row.review.comment|default:"" }}</td>
@@ -69,7 +69,7 @@
                                     <br><span class="text-danger small">(штраф: -{{ row.defense_details.penalty|floatformat:2 }})</span>
                                 {% endif %}
                             {% else %}
-                                <span class="text-muted">нет</span>
+                                <span class="text-muted">—</span>
                             {% endif %}
                         </td>
                         <td>{{ row.defense.comment|default:"" }}</td>
@@ -101,7 +101,7 @@
                             {% elif record.status == 'Б' %}
                                 Болел
                             {% else %}
-                                <span class="text-muted">не отмечено</span>
+                                <span class="text-muted">—</span>
                             {% endif %}
                         </td>
                     </tr>
@@ -140,7 +140,7 @@
                             {% if summary.exam_score is not None %}
                                 {{ summary.exam_score|floatformat:2 }}
                             {% else %}
-                                <span class="text-muted">не выставлена</span>
+                                <span class="text-muted">—</span>
                             {% endif %}
                         </td>
                     </tr>
@@ -150,7 +150,7 @@
                             {% if summary.final_score is not None %}
                                 {{ summary.final_score|floatformat:2 }}
                             {% else %}
-                                <span class="text-muted">не выставлена</span>
+                                <span class="text-muted">—</span>
                             {% endif %}
                         </td>
                     </tr>
@@ -195,7 +195,7 @@
                             {% if sick_leave.start_date and sick_leave.end_date %}
                                 {{ sick_leave.start_date|date:"d.m.Y" }} — {{ sick_leave.end_date|date:"d.m.Y" }}
                             {% else %}
-                                <span class="text-muted">не указан</span>
+                                <span class="text-muted">—</span>
                             {% endif %}
                         </td>
                         <td>{{ sick_leave.get_status_display }}</td>

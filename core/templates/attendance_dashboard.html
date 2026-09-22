@@ -24,45 +24,74 @@
         </div>
     </form>
 
+    <div class="stats-row mb-3">
+        <div class="stat-card">
+            <span class="stat-card-label">Среднее число присутствий</span>
+            <span class="stat-card-value">{% if avg_present is not None %}{{ avg_present|floatformat:2 }}{% else %}—{% endif %}</span>
+        </div>
+        <div class="stat-card">
+            <span class="stat-card-label">Среднее число пропусков</span>
+            <span class="stat-card-value">{% if avg_absent is not None %}{{ avg_absent|floatformat:2 }}{% else %}—{% endif %}</span>
+        </div>
+        <div class="stat-card">
+            <span class="stat-card-label">Среднее число пропусков по болезни</span>
+            <span class="stat-card-value">{% if avg_sick is not None %}{{ avg_sick|floatformat:2 }}{% else %}—{% endif %}</span>
+        </div>
+    </div>
+
     {% if lesson_dates %}
         <form method="post">
             {% csrf_token %}
             <input type="hidden" name="subgroup" value="{{ selected_subgroup_id }}">
             <div class="table-card">
-                <table class="table align-middle">
-                    <thead>
-                    <tr>
-                        <th>Студент</th>
-                        <th>Подгруппа</th>
-                        {% for lesson_date in lesson_dates %}
-                            <th>{{ lesson_date|date:"d.m.Y" }}</th>
-                        {% endfor %}
-                    </tr>
-                    </thead>
-                    <tbody>
-                    {% for row in rows %}
+                <div class="table-scroll">
+                    <table class="table align-middle attendance-table">
+                        <thead>
                         <tr>
-                            <td>{{ row.student }}</td>
-                            <td>{{ row.student.subgroup }}</td>
-                            {% for cell in row.cells %}
-                                <td>
-                                    <select name="status_{{ row.student.pk }}_{{ cell.lesson_date|date:'Y-m-d' }}"
-                                            class="form-select form-select-sm">
-                                        <option value="" {% if not cell.status %}selected{% endif %}>—</option>
-                                        {% for value, label in status_choices %}
-                                            <option value="{{ value }}" {% if cell.status == value %}selected{% endif %}>
-                                                {{ label }}
-                                            </option>
-                                        {% endfor %}
-                                    </select>
-                                </td>
+                            <th>Студент</th>
+                            <th>Подгруппа</th>
+                            {% for lesson_date in lesson_dates %}
+                                <th>{{ lesson_date|date:"d.m.Y" }}</th>
                             {% endfor %}
                         </tr>
-                    {% endfor %}
-                    </tbody>
-                </table>
+                        </thead>
+                        <tbody>
+                        {% for row in rows %}
+                            <tr>
+                                <td>{{ row.student }}</td>
+                                <td>{{ row.student.subgroup }}</td>
+                                {% for cell in row.cells %}
+                                    <td>
+                                        {% if row.editable %}
+                                            <select name="status_{{ row.student.pk }}_{{ cell.lesson_date|date:'Y-m-d' }}"
+                                                    class="form-select form-select-sm">
+                                                <option value="" {% if not cell.status %}selected{% endif %}>—</option>
+                                                {% for value, label in status_choices %}
+                                                    <option value="{{ value }}" {% if cell.status == value %}selected{% endif %}>
+                                                        {{ label }}
+                                                    </option>
+                                                {% endfor %}
+                                            </select>
+                                        {% else %}
+                                            {% if cell.status == 'П' %}
+                                                Присутствовал
+                                            {% elif cell.status == 'Н' %}
+                                                Не был
+                                            {% elif cell.status == 'Б' %}
+                                                Болел
+                                            {% else %}
+                                                —
+                                            {% endif %}
+                                        {% endif %}
+                                    </td>
+                                {% endfor %}
+                            </tr>
+                        {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
             </div>
-            <button type="submit" class="btn btn-primary">Сохранить посещаемость</button>
+            <button type="submit" class="btn btn-primary">Сохранить</button>
         </form>
     {% else %}
         <p class="text-muted">Пока не добавлено ни одной даты занятия.</p>

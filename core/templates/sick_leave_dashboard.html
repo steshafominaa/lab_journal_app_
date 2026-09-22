@@ -29,7 +29,7 @@
                         {% if sick_leave.start_date and sick_leave.end_date %}
                             {{ sick_leave.start_date|date:"d.m.Y" }} — {{ sick_leave.end_date|date:"d.m.Y" }}
                         {% else %}
-                            <span class="text-muted">не указан</span>
+                            <span class="text-muted">—</span>
                         {% endif %}
                     </td>
                     <td>{{ sick_leave.get_status_display }}</td>

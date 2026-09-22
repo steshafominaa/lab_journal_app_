@@ -178,6 +178,53 @@
             background-color: var(--color-surface-alt);
         }
 
+        /* Горизонтальная прокрутка для широких таблиц (например, посещаемость с
+           большим количеством дат). Ячейки не переносят текст и занимают ровно
+           столько места, сколько нужно самому длинному значению в столбце. */
+        .table-scroll {
+            overflow-x: auto;
+        }
+        .attendance-table {
+            width: auto;
+        }
+        .attendance-table th,
+        .attendance-table td {
+            white-space: nowrap;
+        }
+        .attendance-table select {
+            width: auto;
+            min-width: 9rem;
+        }
+
+        /* Небольшие карточки со средними показателями (посещаемость, итоги) */
+        .stats-row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 1rem;
+        }
+        .stat-card {
+            display: flex;
+            flex-direction: column;
+            gap: 0.35rem;
+            background-color: var(--color-surface);
+            border: 1px solid var(--color-border);
+            border-radius: 14px;
+            padding: 1rem 1.25rem;
+            min-width: 220px;
+        }
+        .stat-card-label {
+            font-size: 0.75rem;
+            font-weight: 700;
+            letter-spacing: 0.03em;
+            text-transform: uppercase;
+            color: var(--color-muted);
+        }
+        .stat-card-value {
+            font-size: 1.4rem;
+            font-weight: 700;
+            color: var(--color-text);
+        }
+
         .badge.bg-secondary { background-color: var(--color-muted) !important; }
         .badge.bg-info { background-color: var(--color-primary-light) !important; }
 

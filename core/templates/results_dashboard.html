@@ -21,6 +21,13 @@
         </div>
     </form>
 
+    <div class="stats-row mb-3">
+        <div class="stat-card">
+            <span class="stat-card-label">Средний балл по итоговой оценке</span>
+            <span class="stat-card-value">{% if avg_final_score is not None %}{{ avg_final_score|floatformat:2 }}{% else %}—{% endif %}</span>
+        </div>
+    </div>
+
     <form method="post">
         {% csrf_token %}
         <input type="hidden" name="subgroup" value="{{ selected_subgroup_id }}">
@@ -30,7 +37,7 @@
             <tr>
                 <th>Студент</th>
                 <th>Подгруппа</th>
-                <th>Средняя за лабы</th>
+                <th>Средняя за ЛР</th>
                 <th>Бонус</th>
                 <th>Автомат доступен</th>
                 <th>Согласие студента</th>
@@ -46,9 +53,13 @@
                     {% if row.summary %}
                         <td>{{ row.summary.average_lab_score|floatformat:2 }}</td>
                         <td>
-                            <input type="number" step="0.01" min="0" class="form-control form-control-sm"
-                                   name="bonus_{{ row.student.pk }}"
-                                   value="{{ row.summary.bonus|floatformat:2 }}">
+                            {% if row.editable %}
+                                <input type="number" step="0.01" min="0" class="form-control form-control-sm"
+                                       name="bonus_{{ row.student.pk }}"
+                                       value="{{ row.summary.bonus|floatformat:2 }}">
+                            {% else %}
+                                {{ row.summary.bonus|floatformat:2 }}
+                            {% endif %}
                         </td>
                         <td>
                             {% if row.summary.auto_pass_eligible %}
@@ -63,33 +74,39 @@
                             {% elif row.summary.discipline_result.auto_pass_agree == False %}
                                 Не согласен
                             {% else %}
-                                <span class="text-muted">не указано</span>
+                                —
                             {% endif %}
                         </td>
                         <td>
                             {% if row.summary.discipline_result.auto_pass_agree and row.summary.auto_pass_eligible %}
                                 {{ row.summary.exam_score|floatformat:2 }} <span class="text-muted">(автомат)</span>
-                            {% else %}
+                            {% elif row.editable %}
                                 <input type="number" step="0.01" min="0" max="10" class="form-control form-control-sm"
                                        name="exam_{{ row.student.pk }}"
                                        value="{{ row.summary.discipline_result.exam_score|default_if_none:'' }}">
+                            {% else %}
+                                {% if row.summary.exam_score is not None %}
+                                    {{ row.summary.exam_score|floatformat:2 }}
+                                {% else %}
+                                    —
+                                {% endif %}
                             {% endif %}
                         </td>
                         <td>
                             {% if row.summary.final_score is not None %}
                                 {{ row.summary.final_score|floatformat:2 }}
                             {% else %}
-                                <span class="text-muted">не выставлена</span>
+                                —
                             {% endif %}
                         </td>
                     {% else %}
-                        <td colspan="7" class="text-muted">Нет лабораторных работ</td>
+                        <td colspan="6" class="text-muted">Нет лабораторных работ</td>
                     {% endif %}
                 </tr>
             {% endfor %}
             </tbody>
         </table>
         </div>
-        <button type="submit" class="btn btn-primary">Сохранить бонусы и экзамен</button>
+        <button type="submit" class="btn btn-primary">Сохранить</button>
     </form>
 {% endblock %}

@@ -20,33 +20,39 @@
                 <th>Дедлайн защиты</th>
                 <th>Вес отчёта</th>
                 <th>Вес защиты</th>
+                <th>Ср. балл за отчёт</th>
+                <th>Ср. балл за защиту</th>
+                <th>Ср. итог за ЛР</th>
                 <th></th>
             </tr>
             </thead>
             <tbody>
-            {% for lab_work in lab_works %}
+            {% for lab_row in lab_rows %}
                 <tr>
-                    <td>{{ lab_work.title }}</td>
-                    <td>{{ lab_work.report_deadline|date:"d.m.Y" }}</td>
-                    <td>{{ lab_work.defense_deadline|date:"d.m.Y" }}</td>
-                    <td>{{ lab_work.report_weight }}</td>
-                    <td>{{ lab_work.defense_weight }}</td>
+                    <td>{{ lab_row.lab_work.title }}</td>
+                    <td>{{ lab_row.lab_work.report_deadline|date:"d.m.Y" }}</td>
+                    <td>{{ lab_row.lab_work.defense_deadline|date:"d.m.Y" }}</td>
+                    <td>{{ lab_row.lab_work.report_weight }}</td>
+                    <td>{{ lab_row.lab_work.defense_weight }}</td>
+                    <td>{% if lab_row.avg_report is not None %}{{ lab_row.avg_report|floatformat:2 }}{% else %}—{% endif %}</td>
+                    <td>{% if lab_row.avg_defense is not None %}{{ lab_row.avg_defense|floatformat:2 }}{% else %}—{% endif %}</td>
+                    <td>{% if lab_row.avg_lab is not None %}{{ lab_row.avg_lab|floatformat:2 }}{% else %}—{% endif %}</td>
                     <td class="text-nowrap">
-                        <a href="{% url 'edit_lab_work' lab_work.pk %}" class="btn btn-sm btn-outline-primary">
+                        <a href="{% url 'edit_lab_work' lab_row.lab_work.pk %}" class="btn btn-sm btn-outline-primary">
                             Изменить
                         </a>
                         <form method="post" class="d-inline"
                               onsubmit="return confirm('Удалить лабораторную работу? Будут удалены все связанные отчёты, проверки и защиты по ней.');">
                             {% csrf_token %}
                             <input type="hidden" name="action" value="delete">
-                            <input type="hidden" name="lab_id" value="{{ lab_work.pk }}">
+                            <input type="hidden" name="lab_id" value="{{ lab_row.lab_work.pk }}">
                             <button type="submit" class="btn btn-sm btn-outline-danger">Удалить</button>
                         </form>
                     </td>
                 </tr>
             {% empty %}
                 <tr>
-                    <td colspan="6" class="text-muted">Лабораторных работ пока нет.</td>
+                    <td colspan="9" class="text-muted">Лабораторных работ пока нет.</td>
                 </tr>
             {% endfor %}
             </tbody>

@@ -6,13 +6,31 @@
 
 {% block content %}
     <h4>Новая дата занятия</h4>
-    <form method="post">
-        {% csrf_token %}
-        <div class="mb-3">
-            <label class="form-label">Дата</label>
-            <input type="date" name="lesson_date" class="form-control" required>
-        </div>
-        <button type="submit" class="btn btn-primary">Добавить</button>
-        <a href="{% url 'attendance_dashboard' %}" class="btn btn-outline-secondary">Отмена</a>
-    </form>
+
+    {% if error %}
+        <div class="alert alert-danger">{{ error }}</div>
+    {% endif %}
+
+    {% if subgroups %}
+        <form method="post">
+            {% csrf_token %}
+            <div class="mb-3">
+                <label class="form-label">Подгруппа</label>
+                <select name="subgroup_id" class="form-select" required>
+                    {% for subgroup in subgroups %}
+                        <option value="{{ subgroup.pk }}">{{ subgroup.subgroup_name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="mb-3">
+                <label class="form-label">Дата</label>
+                <input type="date" name="lesson_date" class="form-control" required>
+            </div>
+            <button type="submit" class="btn btn-primary">Добавить</button>
+            <a href="{% url 'attendance_dashboard' %}" class="btn btn-outline-secondary">Отмена</a>
+        </form>
+    {% else %}
+        <p class="text-muted">У вас нет собственных подгрупп, для которых можно добавить дату занятия.</p>
+        <a href="{% url 'attendance_dashboard' %}" class="btn btn-outline-secondary">Назад</a>
+    {% endif %}
 {% endblock %}

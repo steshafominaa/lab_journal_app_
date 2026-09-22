@@ -35,7 +35,7 @@
                                 {% if cell.report and cell.report.submitted_at %}
                                     {{ cell.report.submitted_at|date:"d.m.Y" }}
                                 {% else %}
-                                    <span class="text-muted">отчёт не сдан</span>
+                                    <span class="text-muted">—</span>
                                 {% endif %}
                             </div>
                             {% if block.editable %}
@@ -67,7 +67,7 @@
                                     {% if cell.defense.defense_date %}
                                         {{ cell.defense.defense_date|date:"d.m.Y" }}
                                     {% else %}
-                                        <span class="text-muted">дата не указана</span>
+                                        <span class="text-muted">—</span>
                                     {% endif %}
                                     {% if cell.defense.score is not None %}
                                         (итог: {{ cell.defense_details.final_score|floatformat:2 }})
@@ -76,7 +76,7 @@
                                         <span class="pill pill-danger">штраф: -{{ cell.defense_details.penalty|floatformat:2 }}</span>
                                     {% endif %}
                                 {% else %}
-                                    <span class="text-muted">защита не проведена</span>
+                                    <span class="text-muted">—</span>
                                 {% endif %}
                             </div>
                             {% if block.editable %}
