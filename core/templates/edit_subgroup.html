@@ -25,7 +25,7 @@
             <select name="teacher_id" class="form-select" required>
                 {% for teacher in teachers %}
                     <option value="{{ teacher.pk }}" {% if teacher.pk == subgroup.teacher_id %}selected{% endif %}>
-                        {{ teacher }}{% if teacher.is_admin %} (админ){% endif %}
+                        {{ teacher }}
                     </option>
                 {% endfor %}
             </select>

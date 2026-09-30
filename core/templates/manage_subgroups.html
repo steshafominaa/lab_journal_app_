@@ -24,7 +24,17 @@
             {% for subgroup in subgroups %}
                 <tr>
                     <td>{{ subgroup.subgroup_name }}</td>
-                    <td>{{ subgroup.teacher }}{% if subgroup.teacher.is_admin %} (админ){% endif %}</td>
+                    <td>
+                        {{ subgroup.teacher }}
+                        {% if subgroup.teacher.is_admin %}
+                            <svg class="role-icon-admin" width="16" height="16" viewBox="0 0 24 24" fill="none"
+                                 stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+                                 aria-label="Администратор" role="img">
+                                <title>Администратор</title>
+                                <path d="M12 2l8 3v6c0 5-3.5 8.5-8 11-4.5-2.5-8-6-8-11V5l8-3z"></path>
+                            </svg>
+                        {% endif %}
+                    </td>
                     <td class="text-nowrap">
                         <a href="{% url 'edit_subgroup' subgroup.pk %}" class="btn btn-sm btn-outline-primary">
                             Изменить
@@ -59,7 +69,7 @@
             <label class="form-label">Преподаватель</label>
             <select name="teacher_id" class="form-select" required>
                 {% for teacher in teachers %}
-                    <option value="{{ teacher.pk }}">{{ teacher }}{% if teacher.is_admin %} (админ){% endif %}</option>
+                        <option value="{{ teacher.pk }}">{{ teacher }}</option>
                 {% endfor %}
             </select>
         </div>
