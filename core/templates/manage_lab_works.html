@@ -20,9 +20,6 @@
                 <th>Дедлайн защиты</th>
                 <th>Вес отчёта</th>
                 <th>Вес защиты</th>
-                <th>Ср. балл за отчёт</th>
-                <th>Ср. балл за защиту</th>
-                <th>Ср. итог за ЛР</th>
                 <th></th>
             </tr>
             </thead>
@@ -34,9 +31,6 @@
                     <td>{{ lab_row.lab_work.defense_deadline|date:"d.m.Y" }}</td>
                     <td>{{ lab_row.lab_work.report_weight }}</td>
                     <td>{{ lab_row.lab_work.defense_weight }}</td>
-                    <td>{% if lab_row.avg_report is not None %}{{ lab_row.avg_report|floatformat:2 }}{% else %}—{% endif %}</td>
-                    <td>{% if lab_row.avg_defense is not None %}{{ lab_row.avg_defense|floatformat:2 }}{% else %}—{% endif %}</td>
-                    <td>{% if lab_row.avg_lab is not None %}{{ lab_row.avg_lab|floatformat:2 }}{% else %}—{% endif %}</td>
                     <td class="text-nowrap">
                         <a href="{% url 'edit_lab_work' lab_row.lab_work.pk %}" class="btn btn-sm btn-outline-primary">
                             Изменить
@@ -52,7 +46,7 @@
                 </tr>
             {% empty %}
                 <tr>
-                    <td colspan="9" class="text-muted">Лабораторных работ пока нет.</td>
+                    <td colspan="6" class="text-muted">Лабораторных работ пока нет.</td>
                 </tr>
             {% endfor %}
             </tbody>
