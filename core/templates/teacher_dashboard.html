@@ -63,33 +63,46 @@
 
                             <span class="lab-card-label">Защита</span>
                             <div class="lab-card-value">
-                                {% if cell.has_defense_info %}
-                                    {% if cell.defense.defense_date %}
-                                        {{ cell.defense.defense_date|date:"d.m.Y" }}
-                                    {% else %}
-                                        <span class="text-muted">—</span>
-                                    {% endif %}
-                                    {% if cell.defense.score is not None %}
-                                        (итог: {{ cell.defense_details.final_score|floatformat:2 }})
-                                    {% endif %}
-                                    {% if cell.defense_details.penalty %}
-                                        <span class="pill pill-danger">штраф: -{{ cell.defense_details.penalty|floatformat:2 }}</span>
-                                    {% endif %}
+                                {% if cell.has_defense_info and cell.defense.defense_date %}
+                                    {{ cell.defense.defense_date|date:"d.m.Y" }}
                                 {% else %}
                                     <span class="text-muted">—</span>
                                 {% endif %}
                             </div>
                             {% if block.editable %}
                                 {% if cell.report %}
-                                    <a href="{% url 'set_defense' row.student.pk cell.lab_work.pk %}" class="btn-pill">
-                                        Защита
+                                    <a href="{% url 'set_defense' row.student.pk cell.lab_work.pk %}" class="btn-pill mb-3">
+                                        Указать дату защиты
                                     </a>
                                 {% else %}
                                     <span class="text-muted small">сначала укажите дату сдачи отчёта</span>
                                 {% endif %}
-                            {% else %}
-                                <span class="btn-pill btn-pill-disabled" aria-disabled="true">Защита</span>
                             {% endif %}
+                            {% if cell.defense.score is not None %}
+                                <div class="lab-card-score">
+                                    Оценка за защиту: {{ cell.defense_details.final_score|floatformat:2 }} / 10
+                                    {% if cell.defense_details.penalty %}
+                                        <span class="pill pill-danger">штраф: -{{ cell.defense_details.penalty|floatformat:2 }}</span>
+                                    {% endif %}
+                                </div>
+                                {% if block.editable %}
+                                    <a href="{% url 'set_defense' row.student.pk cell.lab_work.pk %}"
+                                       class="lab-card-link">
+                                        Смотреть / изменить оценку
+                                    </a>
+                                {% endif %}
+                            {% endif %}
+
+                            <hr>
+
+                            <span class="lab-card-label">Итог</span>
+                            <div class="lab-card-value">
+                                {% if cell.lab_score is not None %}
+                                    {{ cell.lab_score|floatformat:2 }}
+                                {% else %}
+                                    <span class="text-muted">—</span>
+                                {% endif %}
+                            </div>
                         </div>
                     </div>
                 {% endfor %}

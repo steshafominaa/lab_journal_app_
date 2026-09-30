@@ -24,21 +24,6 @@
         </div>
     </form>
 
-    <div class="stats-row mb-3">
-        <div class="stat-card">
-            <span class="stat-card-label">Среднее число присутствий</span>
-            <span class="stat-card-value">{% if avg_present is not None %}{{ avg_present|floatformat:2 }}{% else %}—{% endif %}</span>
-        </div>
-        <div class="stat-card">
-            <span class="stat-card-label">Среднее число пропусков</span>
-            <span class="stat-card-value">{% if avg_absent is not None %}{{ avg_absent|floatformat:2 }}{% else %}—{% endif %}</span>
-        </div>
-        <div class="stat-card">
-            <span class="stat-card-label">Среднее число пропусков по болезни</span>
-            <span class="stat-card-value">{% if avg_sick is not None %}{{ avg_sick|floatformat:2 }}{% else %}—{% endif %}</span>
-        </div>
-    </div>
-
     {% if lesson_dates %}
         <form method="post">
             {% csrf_token %}

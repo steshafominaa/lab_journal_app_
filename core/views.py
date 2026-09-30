@@ -456,6 +456,7 @@ def teacher_dashboard(request):
                 has_defense_info = bool(
                     defense and (defense.defense_date or defense.score is not None)
                 )
+                defense_scored = bool(defense and defense.score is not None)
                 cells.append({
                     'lab_work': lab_work,
                     'report': report,
@@ -464,6 +465,8 @@ def teacher_dashboard(request):
                     'review': review,
                     'report_details': compute_report_details(student, lab_work) if review else None,
                     'defense_details': compute_defense_details(student, lab_work) if has_defense_info else None,
+                    # Итог за лабораторную считаем, только когда есть и оценка за отчёт, и за защиту
+                    'lab_score': compute_lab_grade(student, lab_work)['lab_score'] if (review and defense_scored) else None,
                 })
             rows.append({'student': student, 'cells': cells})
 
@@ -593,29 +596,17 @@ def attendance_dashboard(request):
         return redirect('attendance_dashboard')
 
     rows = []
-    total_present = total_absent = total_sick = 0
     for student in students:
         cells = []
         for lesson_date in lesson_dates:
             record = records.get((student.pk, lesson_date))
             status = record.status if record else ''
             cells.append({'lesson_date': lesson_date, 'status': status})
-            if status == 'П':
-                total_present += 1
-            elif status == 'Н':
-                total_absent += 1
-            elif status == 'Б':
-                total_sick += 1
         rows.append({
             'student': student,
             'cells': cells,
             'editable': student.pk in editable_student_ids,
         })
-
-    student_count = len(students)
-    avg_present = total_present / student_count if student_count else None
-    avg_absent = total_absent / student_count if student_count else None
-    avg_sick = total_sick / student_count if student_count else None
 
     context = {
         'lesson_dates': lesson_dates,
@@ -623,9 +614,6 @@ def attendance_dashboard(request):
         'status_choices': Attendance.STATUS_CHOICES,
         'subgroups': subgroups,
         'selected_subgroup_id': selected_subgroup_id,
-        'avg_present': avg_present,
-        'avg_absent': avg_absent,
-        'avg_sick': avg_sick,
     }
     return render(request, 'attendance_dashboard.html', context)
 
@@ -653,20 +641,32 @@ def attendance_report(request):
     }
 
     rows = []
+    total_present = total_absent = total_sick = 0
     for student in students:
         statuses = [records.get((student.pk, lesson_date)) for lesson_date in lesson_dates]
+        present_count = sum(1 for s in statuses if s == 'П')
+        absent_count = sum(1 for s in statuses if s == 'Н')
+        sick_count = sum(1 for s in statuses if s == 'Б')
+        total_present += present_count
+        total_absent += absent_count
+        total_sick += sick_count
         rows.append({
             'student': student,
             'cells': statuses,
-            'present_count': sum(1 for s in statuses if s == 'П'),
-            'missed_count': sum(1 for s in statuses if s in ('Н', 'Б')),
+            'present_count': present_count,
+            'missed_count': absent_count + sick_count,
         })
+
+    student_count = len(students)
+    avg_present = total_present / student_count if student_count else None
+    avg_absent = total_absent / student_count if student_count else None
+    avg_sick = total_sick / student_count if student_count else None
 
     # Если в адресе есть ?export=xlsx — отдаём файл для скачивания вместо обычной страницы.
     if request.GET.get('export') == 'xlsx':
         sheet_rows = [
-            ['Отчет по посещаемости'],
-            ['Студент'] + [d.strftime('%d.%m.') for d in lesson_dates] + ['Присутствовал', 'Пропущено'],
+            ['Отчёт по посещаемости'],
+            ['Студент'] + [d.strftime('%d.%m.') for d in lesson_dates] + ['Присутствия', 'Пропуски'],
         ]
         for row in rows:
             sheet_rows.append(
@@ -674,6 +674,10 @@ def attendance_report(request):
                 + [cell or '' for cell in row['cells']]
                 + [row['present_count'], row['missed_count']]
             )
+        sheet_rows.append([])
+        sheet_rows.append(['Среднее число присутствий', avg_present if avg_present is not None else ''])
+        sheet_rows.append(['Среднее число пропусков', avg_absent if avg_absent is not None else ''])
+        sheet_rows.append(['Среднее число пропусков по болезни', avg_sick if avg_sick is not None else ''])
         return _xlsx_response('attendance_report.xlsx', sheet_rows)
 
     context = {
@@ -681,6 +685,9 @@ def attendance_report(request):
         'selected_subgroup_id': selected_subgroup_id,
         'lesson_dates': lesson_dates,
         'rows': rows,
+        'avg_present': avg_present,
+        'avg_absent': avg_absent,
+        'avg_sick': avg_sick,
     }
     return render(request, 'attendance_report.html', context)
 
@@ -703,6 +710,7 @@ def performance_report(request):
     lab_works = list(LaboratoryWork.objects.order_by('report_deadline'))
 
     rows = []
+    final_scores = []
     for student in students:
         summary = compute_student_summary(student)
         lab_cells = []
@@ -715,18 +723,22 @@ def performance_report(request):
                     'defense_score': grade['defense_score'] if grade else 0,
                     'lab_score': grade['lab_score'] if grade else 0,
                 })
+            if summary['final_score'] is not None:
+                final_scores.append(summary['final_score'])
         rows.append({'student': student, 'summary': summary, 'lab_cells': lab_cells})
+
+    avg_final_score = sum(final_scores) / len(final_scores) if final_scores else None
 
     if request.GET.get('export') == 'xlsx':
         header_top = ['Студент']
         header_bottom = ['']
         for index, _lab_work in enumerate(lab_works, start=1):
             header_top += [f'ЛР {index}', '', '']
-            header_bottom += ['Отчет', 'Защита', 'Итог']
+            header_bottom += ['Отчёт', 'Защита', 'Итог']
         header_top += ['Итог за ЛР', 'Экзамен', 'Итог']
         header_bottom += ['', '', '']
 
-        sheet_rows = [['Отчет по успеваемости'], header_top, header_bottom]
+        sheet_rows = [['Отчёт по успеваемости'], header_top, header_bottom]
 
         for row in rows:
             line = [row['student'].profile.full_name()]
@@ -744,6 +756,8 @@ def performance_report(request):
             else:
                 line += ['—', '—', '—']
             sheet_rows.append(line)
+        sheet_rows.append([])
+        sheet_rows.append(['Средний балл по итоговой оценке', avg_final_score if avg_final_score is not None else ''])
         return _xlsx_response('performance_report.xlsx', sheet_rows)
 
     context = {
@@ -751,6 +765,7 @@ def performance_report(request):
         'selected_subgroup_id': selected_subgroup_id,
         'lab_works': lab_works,
         'rows': rows,
+        'avg_final_score': avg_final_score,
     }
     return render(request, 'performance_report.html', context)
 
@@ -790,7 +805,7 @@ def debtors_report(request):
             if lab_work.report_deadline < today and (not report or not report.submitted_at):
                 student_debts.append({
                     'lab_work': lab_work,
-                    'type': 'Отчет',
+                    'type': 'Отчёт',
                     'deadline': lab_work.report_deadline,
                 })
 
@@ -813,7 +828,7 @@ def debtors_report(request):
 
     if request.GET.get('export') == 'xlsx':
         sheet_rows = [
-            [f'Отчет по должникам на {today.strftime("%d.%m.%Y")}'],
+            [f'Отчёт по должникам на {today.strftime("%d.%m.%Y")}'],
             ['Студент', 'Подгруппа', 'Лабораторная работа', 'Не сдано', 'Дедлайн'],
         ]
         for row in rows:
@@ -952,7 +967,6 @@ def results_dashboard(request):
         return redirect('results_dashboard')
 
     rows = []
-    final_scores = []
     for student in students:
         summary = compute_student_summary(student)
         rows.append({
@@ -960,16 +974,11 @@ def results_dashboard(request):
             'summary': summary,
             'editable': _teacher_can_edit_subgroup(teacher, student.subgroup),
         })
-        if summary and summary['final_score'] is not None:
-            final_scores.append(summary['final_score'])
-
-    avg_final_score = sum(final_scores) / len(final_scores) if final_scores else None
 
     context = {
         'rows': rows,
         'subgroups': subgroups,
         'selected_subgroup_id': selected_subgroup_id,
-        'avg_final_score': avg_final_score,
     }
     return render(request, 'results_dashboard.html', context)
 
@@ -1020,7 +1029,7 @@ def criteria_management(request):
                 Criterion.objects.filter(pk=request.POST.get('delete_id')).delete()
                 return redirect('criteria_management')
             except ProtectedError:
-                error = 'Нельзя ��далить критерий: он уже используется в проверенных отчётах.'
+                error = 'Нельзя удалить критерий: он уже используется в проверенных отчётах.'
         else:
             description = request.POST.get('description', '').strip()
             max_score_raw = request.POST.get('max_score')
@@ -1031,7 +1040,7 @@ def criteria_management(request):
                 elif max_score_value <= 0:
                     error = 'Максимальный балл должен быть больше нуля.'
                 elif total_max + max_score_value > 8:
-                    error = 'Су��ма максимальных баллов по всем критериям не может превышать 8.'
+                    error = 'Сумма максимальных баллов по всем критериям не может превышать 8.'
                 else:
                     Criterion.objects.create(description=description, max_score=max_score_value)
                     return redirect('criteria_management')
@@ -1056,7 +1065,7 @@ def set_auto_pass_agree(request):
     return redirect('student_dashboard')
 
 
-# Личный кабинет студента: его оценки по лабам, посещаемость, итог по дисциплине и справки
+# Личный кабинет студента: его оценки по лабам, ��осещаемость, итог по дисциплине и справки
 @login_required
 def student_dashboard(request):
     student = request.user.profile.student

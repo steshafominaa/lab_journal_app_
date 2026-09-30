@@ -4,29 +4,23 @@
 
 {% block content %}
     <div class="page-header">
-        <div>
-            <h1 class="mb-0">Отчёты</h1>
-            <p class="text-muted mb-0">Сводные отчёты по дисциплине с выгрузкой в XLSX</p>
-        </div>
+        <h1 class="mb-0">Отчёты</h1>
     </div>
 
     <div class="row g-3">
         <div class="col-12 col-md-4">
             <a href="{% url 'attendance_report' %}" class="report-card">
                 <h5>Посещаемость</h5>
-                <p>Явки и пропуски по датам занятий, с разбивкой по подгруппам.</p>
             </a>
         </div>
         <div class="col-12 col-md-4">
             <a href="{% url 'performance_report' %}" class="report-card">
                 <h5>Успеваемость</h5>
-                <p>Баллы за отчёты и защиты по каждой лабораторной работе, итог и экзамен.</p>
             </a>
         </div>
         <div class="col-12 col-md-4">
             <a href="{% url 'debtors_report' %}" class="report-card">
                 <h5>Должники</h5>
-                <p>Студенты с несданными отчётами или защитами по истекшим дедлайнам.</p>
             </a>
         </div>
     </div>

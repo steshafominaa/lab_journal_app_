@@ -1,11 +1,11 @@
 {% extends 'base.html' %}
 
-{% block title %}Отчет по должникам{% endblock %}
+    {% block title %}Отчёт по должникам{% endblock %}
 
 {% block content %}
     <div class="page-header">
         <div>
-            <h1 class="mb-0">Отчет по должникам</h1>
+            <h1 class="mb-0">Отчёт по должникам</h1>
             <p class="text-muted mb-0">на {{ today|date:"d.m.Y" }}</p>
         </div>
         <a href="{% url 'reports_hub' %}" class="btn btn-outline-secondary">Все отчёты</a>
@@ -47,11 +47,11 @@
                         <td>{{ row.student.profile.full_name }}</td>
                         <td>{{ row.student.subgroup.subgroup_name }}</td>
                         <td>
-                            <ul class="mb-0 ps-3">
+                            <ul class="mb-0 ps-0 list-unstyled">
                                 {% for debt in row.debts %}
                                     <li>
                                         {{ debt.lab_work.title }} —
-                                        <span class="badge {% if debt.type == 'Отчет' %}bg-warning text-dark{% else %}bg-danger{% endif %}">
+                                        <span class="badge {% if debt.type == 'Отчёт' %}badge-debt-report{% else %}badge-debt-defense{% endif %}">
                                             {{ debt.type }}
                                         </span>
                                         <span class="text-muted">(дедлайн {{ debt.deadline|date:"d.m.Y" }})</span>

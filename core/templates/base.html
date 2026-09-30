@@ -184,6 +184,13 @@
         .table-scroll {
             overflow-x: auto;
         }
+        .assistant-table {
+            width: auto;
+        }
+        .assistant-table th:not(:first-child),
+        .assistant-table td:not(:first-child) {
+            min-width: 220px;
+        }
         .attendance-table {
             width: auto;
         }
@@ -224,6 +231,10 @@
             font-weight: 700;
             color: var(--color-text);
         }
+
+        /* Бейджи "Отчёт"/"Защита" в отчёте по должникам — тон навбара и чуть темнее */
+        .badge-debt-report { background-color: var(--color-primary) !important; color: #fff !important; }
+        .badge-debt-defense { background-color: var(--color-primary-dark) !important; color: #fff !important; }
 
         .badge.bg-secondary { background-color: var(--color-muted) !important; }
         .badge.bg-info { background-color: var(--color-primary-light) !important; }
@@ -443,7 +454,7 @@
                             <ul class="dropdown-menu">
                                 <li><a class="dropdown-item" href="{% url 'reports_hub' %}">Все отчёты</a></li>
                                 <li><hr class="dropdown-divider"></li>
-                                <li><a class="dropdown-item" href="{% url 'attendance_report' %}">Посещаемость</a></li>
+                                <li><a class="dropdown-item" href="{% url 'attendance_report' %}">��осещаемость</a></li>
                                 <li><a class="dropdown-item" href="{% url 'performance_report' %}">Успеваемость</a></li>
                                 <li><a class="dropdown-item" href="{% url 'debtors_report' %}">Должники</a></li>
                             </ul>
@@ -453,7 +464,7 @@
                                 <a class="nav-link dropdown-toggle" href="#" data-bs-toggle="dropdown">Администрирование</a>
                                 <ul class="dropdown-menu">
                                     <li><a class="dropdown-item" href="{% url 'criteria_management' %}">Критерии оценивания</a></li>
-                                    <li><a class="dropdown-item" href="{% url 'discipline_settings' %}">Настройки дисциплины</a></li>
+                                    <li><a class="dropdown-item" href="{% url 'discipline_settings' %}">Настройки весов</a></li>
                                     <li><a class="dropdown-item" href="{% url 'manage_lab_works' %}">Лабораторные работы</a></li>
                                     <li><a class="dropdown-item" href="{% url 'manage_subgroups' %}">Подгруппы</a></li>
                                     <li><a class="dropdown-item" href="{% url 'manage_users' %}">Пользователи</a></li>

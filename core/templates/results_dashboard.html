@@ -21,13 +21,6 @@
         </div>
     </form>
 
-    <div class="stats-row mb-3">
-        <div class="stat-card">
-            <span class="stat-card-label">Средний балл по итоговой оценке</span>
-            <span class="stat-card-value">{% if avg_final_score is not None %}{{ avg_final_score|floatformat:2 }}{% else %}—{% endif %}</span>
-        </div>
-    </div>
-
     <form method="post">
         {% csrf_token %}
         <input type="hidden" name="subgroup" value="{{ selected_subgroup_id }}">

@@ -1,10 +1,10 @@
 {% extends 'base.html' %}
 
-{% block title %}Отчет по успеваемости{% endblock %}
+    {% block title %}Отчёт по успеваемости{% endblock %}
 
 {% block content %}
     <div class="page-header">
-        <h1>Отчет по успеваемости</h1>
+            <h1>Отчёт по успеваемости</h1>
         <a href="{% url 'reports_hub' %}" class="btn btn-outline-secondary">Все отчёты</a>
     </div>
 
@@ -27,6 +27,13 @@
         </div>
     </form>
 
+    <div class="stats-row mb-3">
+        <div class="stat-card">
+            <span class="stat-card-label">Средний балл по итоговой оценке</span>
+            <span class="stat-card-value">{% if avg_final_score is not None %}{{ avg_final_score|floatformat:2 }}{% else %}—{% endif %}</span>
+        </div>
+    </div>
+
     {% if lab_works %}
         <div class="table-card">
         <div class="table-responsive">
@@ -43,7 +50,7 @@
                 </tr>
                 <tr>
                     {% for lab_work in lab_works %}
-                        <th>Отчет</th>
+                        <th>Отчёт</th>
                         <th>Защита</th>
                         <th>Итог</th>
                     {% endfor %}

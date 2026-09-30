@@ -1,10 +1,10 @@
 {% extends 'base.html' %}
 
-{% block title %}Отчет по посещаемости{% endblock %}
+    {% block title %}Отчёт по посещаемости{% endblock %}
 
 {% block content %}
     <div class="page-header">
-        <h1>Отчет по посещаемости</h1>
+        <h1>Отчёт по посещаемости</h1>
         <a href="{% url 'reports_hub' %}" class="btn btn-outline-secondary">Все отчёты</a>
     </div>
 
@@ -27,10 +27,25 @@
         </div>
     </form>
 
+    <div class="stats-row mb-3">
+        <div class="stat-card">
+            <span class="stat-card-label">Среднее число присутствий</span>
+            <span class="stat-card-value">{% if avg_present is not None %}{{ avg_present|floatformat:2 }}{% else %}—{% endif %}</span>
+        </div>
+        <div class="stat-card">
+            <span class="stat-card-label">Среднее число пропусков</span>
+            <span class="stat-card-value">{% if avg_absent is not None %}{{ avg_absent|floatformat:2 }}{% else %}—{% endif %}</span>
+        </div>
+        <div class="stat-card">
+            <span class="stat-card-label">Среднее число пропусков по болезни</span>
+            <span class="stat-card-value">{% if avg_sick is not None %}{{ avg_sick|floatformat:2 }}{% else %}—{% endif %}</span>
+        </div>
+    </div>
+
     {% if lesson_dates %}
         <div class="table-card">
-        <div class="table-responsive">
-            <table class="table align-middle text-center">
+        <div class="table-scroll">
+            <table class="table align-middle text-center attendance-table">
                 <thead>
                 <tr>
                     <th rowspan="2" class="align-middle">Студент</th>
@@ -40,8 +55,8 @@
                     <th colspan="2">Итог</th>
                 </tr>
                 <tr>
-                    <th>Присутствовал</th>
-                    <th>Пропущено</th>
+                    <th>Присутствия</th>
+                    <th>Пропуски</th>
                 </tr>
                 </thead>
                 <tbody>
