@@ -78,17 +78,23 @@
                                     <span class="text-muted small">сначала укажите дату сдачи отчёта</span>
                                 {% endif %}
                             {% endif %}
-                            {% if cell.defense.score is not None %}
-                                <div class="lab-card-score">
-                                    Оценка за защиту: {{ cell.defense_details.final_score|floatformat:2 }} / 10
-                                    {% if cell.defense_details.penalty %}
-                                        <span class="pill pill-danger">штраф: -{{ cell.defense_details.penalty|floatformat:2 }}</span>
-                                    {% endif %}
-                                </div>
+                            {% if cell.has_defense_info %}
+                                {% if cell.defense.score is not None %}
+                                    <div class="lab-card-score">
+                                        Оценка за защиту: {{ cell.defense_details.final_score|floatformat:2 }} / 10
+                                        {% if cell.defense_details.penalty %}
+                                            <span class="pill pill-danger">штраф: -{{ cell.defense_details.penalty|floatformat:2 }}</span>
+                                        {% endif %}
+                                    </div>
+                                {% endif %}
                                 {% if block.editable %}
                                     <a href="{% url 'review_defense' row.student.pk cell.lab_work.pk %}"
                                        class="lab-card-link">
-                                        Смотреть / изменить оценку
+                                        {% if cell.defense.score is not None %}
+                                            Смотреть / изменить оценку
+                                        {% else %}
+                                            Выставить оценку
+                                        {% endif %}
                                     </a>
                                 {% endif %}
                             {% endif %}
