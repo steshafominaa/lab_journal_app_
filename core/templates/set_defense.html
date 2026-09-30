@@ -1,12 +1,11 @@
 {% extends 'base.html' %}
 
-{% block title %}Защита лабораторной работы{% endblock %}
+{% block title %}Дата защиты{% endblock %}
 
 {% block card_class %}content-card--narrow{% endblock %}
 
 {% block content %}
-    <h4>{{ lab_work.title }}</h4>
-    <p>Студент: {{ student }}</p>
+    <h4>{{ student }} — {{ lab_work }}</h4>
     <form method="post">
         {% csrf_token %}
         <div class="mb-3">
@@ -14,21 +13,6 @@
             <input type="date" name="defense_date" class="form-control"
                    value="{{ defense.defense_date|date:'Y-m-d' }}">
         </div>
-        <div class="mb-3">
-            <label class="form-label">Оценка (0–10)</label>
-            <input type="number" step="0.1" min="0" max="10" name="score" class="form-control"
-                   value="{{ defense.score|default:'' }}">
-        </div>
-        <div class="mb-3">
-            <label class="form-label">Комментарий</label>
-            <textarea name="comment" class="form-control" rows="3">{{ defense.comment|default:"" }}</textarea>
-        </div>
-
-        <div class="alert alert-secondary">
-            <div>Штраф за просрочку защиты: <strong>{{ defense_penalty|floatformat:2 }}</strong> балл(ов)</div>
-            <div>Итоговая оценка за защиту (с учётом штрафа): <strong>{{ defense_final_score|floatformat:2 }}</strong></div>
-        </div>
-
         <button type="submit" class="btn btn-primary">Сохранить</button>
         <a href="{% url 'teacher_dashboard' %}" class="btn btn-outline-secondary">Отмена</a>
     </form>

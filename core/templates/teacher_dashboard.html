@@ -86,7 +86,7 @@
                                     {% endif %}
                                 </div>
                                 {% if block.editable %}
-                                    <a href="{% url 'set_defense' row.student.pk cell.lab_work.pk %}"
+                                    <a href="{% url 'review_defense' row.student.pk cell.lab_work.pk %}"
                                        class="lab-card-link">
                                         Смотреть / изменить оценку
                                     </a>

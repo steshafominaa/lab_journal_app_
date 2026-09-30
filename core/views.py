@@ -507,7 +507,7 @@ def set_report_date(request, lab_id):
     return render(request, 'set_report_date.html', context)
 
 
-# Преподаватель выставляет дату защиты, оценку и комментарий по конкретному отчёту
+# Преподаватель отмечает дату, когда студент защитил лабораторную (без оценки — как и с отчётом)
 @login_required
 def set_defense(request, student_id, lab_id):
     teacher = request.user.profile.teacher
@@ -524,6 +524,26 @@ def set_defense(request, student_id, lab_id):
 
     if request.method == 'POST':
         defense.defense_date = request.POST.get('defense_date') or None
+        defense.save()
+        return redirect('teacher_dashboard')
+
+    context = {'defense': defense, 'student': student, 'lab_work': lab_work}
+    return render(request, 'set_defense.html', context)
+
+
+# Преподаватель выставляет/меняет оценку и комментарий за уже назначенную защиту
+@login_required
+def review_defense(request, student_id, lab_id):
+    teacher = request.user.profile.teacher
+    student = get_object_or_404(Student, pk=student_id)
+    lab_work = get_object_or_404(LaboratoryWork, pk=lab_id)
+    report = get_object_or_404(LabReport, student=student, lab_work=lab_work)
+    defense = get_object_or_404(Defense, report=report)
+
+    if not _teacher_can_edit_subgroup(teacher, student.subgroup):
+        return redirect('teacher_dashboard')
+
+    if request.method == 'POST':
         defense.score = request.POST.get('score') or None
         defense.comment = request.POST.get('comment', '')
         defense.save()
@@ -536,7 +556,7 @@ def set_defense(request, student_id, lab_id):
         'defense_penalty': defense_details['penalty'],
         'defense_final_score': defense_details['final_score'],
     }
-    return render(request, 'set_defense.html', context)
+    return render(request, 'review_defense.html', context)
 
 
 # Таблица посещаемости, где можно отмечать статус (был/не был/болел) по датам занятий.
@@ -1065,7 +1085,7 @@ def set_auto_pass_agree(request):
     return redirect('student_dashboard')
 
 
-# Личный кабинет студента: его оценки по лабам, ��осещаемость, итог по дисциплине и справки
+# Личный кабинет студента: его оценки по лабам, посещаемость, итог по дисциплине и справки
 @login_required
 def student_dashboard(request):
     student = request.user.profile.student

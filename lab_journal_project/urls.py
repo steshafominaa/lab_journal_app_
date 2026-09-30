@@ -20,6 +20,7 @@ urlpatterns = [
     path('teacher/lab/<int:lab_id>/submit/', views.set_report_date, name='set_report_date'),
     path('assistant/review/<int:student_id>/<int:lab_id>/', views.review_report, name='review_report'),
     path('teacher/defense/<int:student_id>/<int:lab_id>/', views.set_defense, name='set_defense'),
+    path('teacher/defense/<int:student_id>/<int:lab_id>/review/', views.review_defense, name='review_defense'),
     path('teacher/attendance/', views.attendance_dashboard, name='attendance_dashboard'),
     path('teacher/attendance/add/', views.add_lesson_date, name='add_lesson_date'),
     path('student/sick-leave/add/', views.add_sick_leave, name='add_sick_leave'),
