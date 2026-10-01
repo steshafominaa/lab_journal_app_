@@ -880,7 +880,7 @@ def reports_hub(request):
 
 # Добавляет новую дату занятия и создаёт пустые (без статуса) отметки посещаемости
 # для студентов ОДНОЙ выбранной подгруппы. Каждый преподаватель, включая администратора,
-# может добавлять даты только для своих собственных подгрупп, и только по одной за раз.
+# может добавлять даты только для своих со��ственных подгрупп, и только по одной за раз.
 @login_required
 def add_lesson_date(request):
     teacher = request.user.profile.teacher
@@ -1214,18 +1214,27 @@ def teacher_review_report(request, student_id, lab_id):
         return redirect('teacher_dashboard')
 
     report = get_object_or_404(LabReport, student=student, lab_work=lab_work)
-    review = get_object_or_404(ReportReview, report=report)
-
+    review = ReportReview.objects.filter(report=report).first()
+    
     criteria = Criterion.objects.all()
-    results = {r.criterion_id: r for r in CriterionResult.objects.filter(review=review)}
-
+    results = {r.criterion_id: r for r in CriterionResult.objects.filter(review=review)} if review else {}
+    
     if request.method == 'POST':
+        if review is None:
+            assistant = (
+                Assistant.objects.filter(subgroup=student.subgroup).first()
+                or Assistant.objects.first()
+            )
+            review = ReportReview.objects.create(
+                report=report, assistant=assistant, comment='', reviewed_at=date.today()
+            )
         for criterion in criteria:
             score = request.POST.get(f'criterion_{criterion.pk}') or 0
             CriterionResult.objects.update_or_create(
                 review=review, criterion=criterion, defaults={'score': score}
             )
         review.comment = request.POST.get('comment', '')
+        review.reviewed_at = date.today()
         review.save()
         return redirect('teacher_dashboard')
 
