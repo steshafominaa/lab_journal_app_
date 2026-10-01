@@ -44,13 +44,15 @@
                                     Указать дату сдачи
                                 </a>
                             {% endif %}
-                            {% if cell.review %}
-                                <div class="lab-card-score">
-                                    Оценка за отчёт: {{ cell.report_details.final_score|floatformat:2 }} / 8
-                                    {% if cell.report_details.penalty %}
-                                        <span class="pill pill-danger">штраф: -{{ cell.report_details.penalty|floatformat:2 }}</span>
-                                    {% endif %}
-                                </div>
+                            {% if cell.report and cell.report.submitted_at %}
+                                {% if cell.review %}
+                                    <div class="lab-card-score">
+                                        Оценка за отчёт: {{ cell.report_details.final_score|floatformat:2 }} / 8
+                                        {% if cell.report_details.penalty %}
+                                            <span class="pill pill-danger">штраф: -{{ cell.report_details.penalty|floatformat:2 }}</span>
+                                        {% endif %}
+                                    </div>
+                                {% endif %}
                                 {% if block.editable %}
                                     <a href="{% url 'teacher_review_report' row.student.pk cell.lab_work.pk %}"
                                        class="lab-card-link">
@@ -78,7 +80,7 @@
                                     <span class="text-muted small">сначала укажите дату сдачи отчёта</span>
                                 {% endif %}
                             {% endif %}
-                            {% if cell.has_defense_info %}
+                            {% if cell.has_defense_info and cell.defense.defense_date %}
                                 {% if cell.defense.score is not None %}
                                     <div class="lab-card-score">
                                         Оценка за защиту: {{ cell.defense_details.final_score|floatformat:2 }} / 10
@@ -90,11 +92,7 @@
                                 {% if block.editable %}
                                     <a href="{% url 'review_defense' row.student.pk cell.lab_work.pk %}"
                                        class="lab-card-link">
-                                        {% if cell.defense.score is not None %}
-                                            Смотреть / изменить оценку
-                                        {% else %}
-                                            Выставить оценку
-                                        {% endif %}
+                                        Смотреть / изменить оценку
                                     </a>
                                 {% endif %}
                             {% endif %}
