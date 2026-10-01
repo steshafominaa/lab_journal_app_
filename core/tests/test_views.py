@@ -181,8 +181,9 @@ class CreateUserTests(TestCase):
 
 
 class DebtorsReportTests(TestCase):
-    """Регрессионные тесты: долг по защите не должен появляться раньше срока,
-    кроме случая, когда отчёт сам по себе не сдан (тогда защита невозможна)."""
+    """Регрессионные тесты: долг по защите не должен появляться раньше срока
+    защиты, даже если сам отчёт не сдан — пока есть время, долгом считается
+    только отчёт."""
 
     def setUp(self):
         self.teacher = make_teacher(email='t@example.com', password=PASSWORD, is_admin=True)
@@ -200,7 +201,7 @@ class DebtorsReportTests(TestCase):
         rows = response.context['rows']
         self.assertEqual(len(rows), 1)
         debt_types = {debt['type'] for debt in rows[0]['debts']}
-        self.assertEqual(debt_types, {'Отчёт', 'Защита'})
+        self.assertEqual(debt_types, {'Отчёт'})
 
     def test_report_submitted_on_time_with_future_defense_deadline_has_no_debt(self):
         lab_work = LaboratoryWork.objects.create(
@@ -224,3 +225,15 @@ class DebtorsReportTests(TestCase):
         self.assertEqual(len(rows), 1)
         debt_types = {debt['type'] for debt in rows[0]['debts']}
         self.assertEqual(debt_types, {'Защита'})
+
+    def test_missed_report_with_defense_deadline_also_passed_reports_both_debts(self):
+        LaboratoryWork.objects.create(
+            title='ЛР1', report_deadline=date.today() - timedelta(days=10),
+            defense_deadline=date.today() - timedelta(days=1),
+            report_weight=Decimal('0.5'), defense_weight=Decimal('0.5'),
+        )
+        response = self.client.get(reverse('debtors_report'))
+        rows = response.context['rows']
+        self.assertEqual(len(rows), 1)
+        debt_types = {debt['type'] for debt in rows[0]['debts']}
+        self.assertEqual(debt_types, {'Отчёт', 'Защита'})

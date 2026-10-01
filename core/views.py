@@ -696,7 +696,7 @@ def attendance_report(request):
             )
         sheet_rows.append([])
         sheet_rows.append(['Среднее число присутствий', avg_present if avg_present is not None else ''])
-        sheet_rows.append(['Сред��ее число пропусков', avg_absent if avg_absent is not None else ''])
+        sheet_rows.append(['Сред����ее число пропусков', avg_absent if avg_absent is not None else ''])
         sheet_rows.append(['Среднее число пропусков по болезни', avg_sick if avg_sick is not None else ''])
         return _xlsx_response('attendance_report.xlsx', sheet_rows)
 
@@ -830,11 +830,11 @@ def debtors_report(request):
                     'deadline': lab_work.report_deadline,
                 })
 
-            # Дедлайн защиты прошёл, а оценки за защиту нет — тоже долг;
-            # если отчёт не сдан, защита по нему невозможна в принципе, поэтому
-            # это тоже долг, даже если дедлайн защиты ещё не наступил
+            # Дедлайн защиты прошёл, а оценки за защиту нет — тоже долг.
+            # Если отчёт не сдан, но дедлайн защиты ещё не наступил, долгом
+            # считается только отчёт — защита пока не просрочена.
             defense = defenses_by_report_id.get(report.pk) if report else None
-            if report_missing or (lab_work.defense_deadline < today and (not defense or defense.score is None)):
+            if lab_work.defense_deadline < today and (not defense or defense.score is None):
                 student_debts.append({
                     'lab_work': lab_work,
                     'type': 'Защита',
@@ -1044,7 +1044,7 @@ def discipline_settings_view(request):
         exam_weight = request.POST.get('exam_weight')
         try:
             if abs(float(lab_weight) + float(exam_weight) - 1) > 0.001:
-                error = 'Сумма весов должна быть равна 1.'
+                error = 'Сум��а весов должна быть равна 1.'
             else:
                 settings_row.lab_weight = lab_weight
                 settings_row.exam_weight = exam_weight
