@@ -23,6 +23,7 @@ urlpatterns = [
     path('teacher/defense/<int:student_id>/<int:lab_id>/review/', views.review_defense, name='review_defense'),
     path('teacher/attendance/', views.attendance_dashboard, name='attendance_dashboard'),
     path('teacher/attendance/add/', views.add_lesson_date, name='add_lesson_date'),
+    path('teacher/attendance/delete/<str:lesson_date>/', views.delete_lesson_date, name='delete_lesson_date'),
     path('student/sick-leave/add/', views.add_sick_leave, name='add_sick_leave'),
     path('teacher/sick-leave/', views.sick_leave_dashboard, name='sick_leave_dashboard'),
     path('teacher/sick-leave/<int:sick_leave_id>/', views.review_sick_leave, name='review_sick_leave'),

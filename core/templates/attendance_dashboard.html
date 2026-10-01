@@ -25,6 +25,13 @@
     </form>
 
     {% if lesson_dates %}
+        {% for lesson_date in lesson_dates %}
+            <form id="delete-date-{{ lesson_date|date:'Y-m-d' }}" method="post"
+                  action="{% url 'delete_lesson_date' lesson_date|date:'Y-m-d' %}" class="d-none">
+                {% csrf_token %}
+                <input type="hidden" name="subgroup" value="{{ selected_subgroup_id }}">
+            </form>
+        {% endfor %}
         <form method="post">
             {% csrf_token %}
             <input type="hidden" name="subgroup" value="{{ selected_subgroup_id }}">
@@ -36,7 +43,15 @@
                             <th>Студент</th>
                             <th>Подгруппа</th>
                             {% for lesson_date in lesson_dates %}
-                                <th>{{ lesson_date|date:"d.m.Y" }}</th>
+                                <th>
+                                    {{ lesson_date|date:"d.m.Y" }}
+                                    <button type="submit" form="delete-date-{{ lesson_date|date:'Y-m-d' }}"
+                                            class="btn btn-link btn-sm p-0 text-danger"
+                                            title="Удалить дату занятия"
+                                            onclick="return confirm('Удалить дату занятия {{ lesson_date|date:"d.m.Y" }} и все связанные отметки?');">
+                                        ✕
+                                    </button>
+                                </th>
                             {% endfor %}
                         </tr>
                         </thead>

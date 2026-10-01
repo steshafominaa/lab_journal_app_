@@ -696,7 +696,7 @@ def attendance_report(request):
             )
         sheet_rows.append([])
         sheet_rows.append(['Среднее число присутствий', avg_present if avg_present is not None else ''])
-        sheet_rows.append(['Среднее число пропусков', avg_absent if avg_absent is not None else ''])
+        sheet_rows.append(['Сред��ее число пропусков', avg_absent if avg_absent is not None else ''])
         sheet_rows.append(['Среднее число пропусков по болезни', avg_sick if avg_sick is not None else ''])
         return _xlsx_response('attendance_report.xlsx', sheet_rows)
 
@@ -903,6 +903,27 @@ def add_lesson_date(request):
             return redirect(f"{reverse('attendance_dashboard')}?subgroup={subgroup.pk}")
 
     return render(request, 'add_lesson_date.html', {'subgroups': own_subgroups, 'error': error})
+
+
+# Удаляет дату занятия и все связанные отметки посещаемости. Преподаватель может
+# удалить дату только у студентов своих собственных подгрупп (администратор — у всех);
+# отметки других подгрупп с той же календарной датой при этом не трогаются.
+@login_required
+def delete_lesson_date(request, lesson_date):
+    if request.method != 'POST':
+        return redirect('attendance_dashboard')
+
+    teacher = request.user.profile.teacher
+    editable_students = Student.objects.filter(
+        subgroup__in=_own_subgroups_for_teacher(teacher)
+    ) if not teacher.is_admin else Student.objects.all()
+
+    Attendance.objects.filter(student__in=editable_students, lesson_date=lesson_date).delete()
+
+    selected_subgroup_id = request.POST.get('subgroup') or ''
+    if selected_subgroup_id:
+        return redirect(f"{reverse('attendance_dashboard')}?subgroup={selected_subgroup_id}")
+    return redirect('attendance_dashboard')
 
 
 # Студент загружает файл со справкой (дальше преподаватель проставит даты и статус)
