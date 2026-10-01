@@ -822,16 +822,19 @@ def debtors_report(request):
             report = reports_by_key.get((student.pk, lab_work.pk))
 
             # Дедлайн отчёта прошёл, а отчёт не сдан — это долг
-            if lab_work.report_deadline < today and (not report or not report.submitted_at):
+            report_missing = lab_work.report_deadline < today and (not report or not report.submitted_at)
+            if report_missing:
                 student_debts.append({
                     'lab_work': lab_work,
                     'type': 'Отчёт',
                     'deadline': lab_work.report_deadline,
                 })
 
-            # Дедлайн защиты прошёл, а оценки за защиту нет — тоже долг
+            # Дедлайн защиты прошёл, а оценки за защиту нет — тоже долг;
+            # если отчёт не сдан, защита по нему невозможна в принципе, поэтому
+            # это тоже долг, даже если дедлайн защиты ещё не наступил
             defense = defenses_by_report_id.get(report.pk) if report else None
-            if lab_work.defense_deadline < today and (not defense or defense.score is None):
+            if report_missing or (lab_work.defense_deadline < today and (not defense or defense.score is None)):
                 student_debts.append({
                     'lab_work': lab_work,
                     'type': 'Защита',
@@ -958,7 +961,7 @@ def review_sick_leave(request, sick_leave_id):
 
 
 # Итоги по дисциплине для преподавателя: тут выставляют бонусные баллы
-# и оценку за экзамен (если студент не идёт автоматом)
+# и оценку за экзамен (если студент не идёт ав��оматом)
 @login_required
 def results_dashboard(request):
     teacher = request.user.profile.teacher

@@ -159,7 +159,7 @@
                 </div>
 
                 {% if summary.auto_pass_eligible %}
-                    <p>Вы можете получить оценку за экзамен автоматом (средней оценкой за лабораторные). Согласны?</p>
+                    <p>Вы можете получить оценку за экзамен автоматом. Согласны?</p>
                     <form method="post" action="{% url 'set_auto_pass_agree' %}" class="d-inline">
                         {% csrf_token %}
                         <input type="hidden" name="agree" value="yes">
@@ -168,7 +168,7 @@
                     <form method="post" action="{% url 'set_auto_pass_agree' %}" class="d-inline">
                         {% csrf_token %}
                         <input type="hidden" name="agree" value="no">
-                        <button type="submit" class="btn btn-outline-secondary btn-sm">Нет, буду сдавать экзамен</button>
+                        <button type="submit" class="btn btn-outline-secondary btn-sm">Нет, буду сдавать эк��амен</button>
                     </form>
                 {% endif %}
             {% else %}
