@@ -15,6 +15,7 @@ from .models import (
 )
 from .grading import (
     compute_student_summary, compute_report_details, compute_defense_details, compute_lab_grade,
+    is_confirmed_sick_on,
 )
 
 User = get_user_model()
@@ -80,17 +81,6 @@ def _visible_subgroups_for_teacher(teacher):
 # только собственноручное управление — например, добавление дат занятий)
 def _own_subgroups_for_teacher(teacher):
     return Subgroup.objects.filter(teacher=teacher).order_by('subgroup_name')
-
-
-# Если на эту дату у студента подтверждённая справка — нельзя вручную поставить "не был",
-# отметка защищена справкой (используется при сохранении посещаемости)
-def _is_protected_by_confirmed_sick_leave(student, lesson_date):
-    return SickLeave.objects.filter(
-        student=student,
-        status='подтверждена',
-        start_date__lte=lesson_date,
-        end_date__gte=lesson_date,
-    ).exists()
 
 
 # Куда отправить пользователя сразу после входа — зависит от его роли
@@ -466,7 +456,8 @@ def teacher_dashboard(request):
                     'report_details': compute_report_details(student, lab_work) if review else None,
                     'defense_details': compute_defense_details(student, lab_work) if has_defense_info else None,
                     # Итог за лабораторную считаем, только когда есть и оценка за отчёт, и за защиту
-                    'lab_score': compute_lab_grade(student, lab_work)['lab_score'] if (review and defense_scored) else None,
+                    'lab_score': compute_lab_grade(student, lab_work)['lab_score'] if (
+                                review and defense_scored) else None,
                 })
             rows.append({'student': student, 'cells': cells})
 
@@ -604,7 +595,7 @@ def attendance_dashboard(request):
                 # Не даём случайно снять статус "болел" на "не был", если это закрыто справкой
                 if current_status == 'Б' and value == 'Н':
                     student_obj = get_object_or_404(Student, pk=student_id)
-                    if _is_protected_by_confirmed_sick_leave(student_obj, lesson_date):
+                    if is_confirmed_sick_on(student_obj, lesson_date):
                         continue
 
                 Attendance.objects.update_or_create(
@@ -696,7 +687,7 @@ def attendance_report(request):
             )
         sheet_rows.append([])
         sheet_rows.append(['Среднее число присутствий', avg_present if avg_present is not None else ''])
-        sheet_rows.append(['Сред����ее число пропусков', avg_absent if avg_absent is not None else ''])
+        sheet_rows.append(['Среднее число пропусков', avg_absent if avg_absent is not None else ''])
         sheet_rows.append(['Среднее число пропусков по болезни', avg_sick if avg_sick is not None else ''])
         return _xlsx_response('attendance_report.xlsx', sheet_rows)
 
@@ -883,7 +874,7 @@ def reports_hub(request):
 
 # Добавляет новую дату занятия и создаёт пустые (без статуса) отметки посещаемости
 # для студентов ОДНОЙ выбранной подгруппы. Каждый преподаватель, включая администратора,
-# может добавлять даты только для своих со��ственных подгрупп, и только по одной за раз.
+# может добавлять даты только для своих собственных подгрупп, и только по одной за раз.
 @login_required
 def add_lesson_date(request):
     teacher = request.user.profile.teacher
@@ -982,7 +973,7 @@ def review_sick_leave(request, sick_leave_id):
 
 
 # Итоги по дисциплине для преподавателя: тут выставляют бонусные баллы
-# и оценку за экзамен (если студент не идёт ав��оматом)
+# и оценку за экзамен (если студент не идёт автоматом)
 @login_required
 def results_dashboard(request):
     teacher = request.user.profile.teacher
@@ -1044,7 +1035,7 @@ def discipline_settings_view(request):
         exam_weight = request.POST.get('exam_weight')
         try:
             if abs(float(lab_weight) + float(exam_weight) - 1) > 0.001:
-                error = 'Сум��а весов должна быть равна 1.'
+                error = 'Сумма весов должна быть равна 1.'
             else:
                 settings_row.lab_weight = lab_weight
                 settings_row.exam_weight = exam_weight
@@ -1054,6 +1045,7 @@ def discipline_settings_view(request):
             error = 'Введите корректные числа.'
 
     return render(request, 'discipline_settings.html', {'settings': settings_row, 'error': error})
+
 
 # Критерии оценивания отчёта (по ним ассистент проверяет отчёты). Сумма всех
 # максимальных баллов не может быть больше 8 — это ограничение проверяется тут.
@@ -1093,6 +1085,7 @@ def criteria_management(request):
 
     context = {'criteria': criteria, 'total_max': total_max, 'error': error}
     return render(request, 'criteria_management.html', context)
+
 
 # Студент соглашается или отказывается от "автомата" (оценка за экзамен = средний балл за лабы)
 @login_required
@@ -1239,15 +1232,15 @@ def teacher_review_report(request, student_id, lab_id):
 
     report = get_object_or_404(LabReport, student=student, lab_work=lab_work)
     review = ReportReview.objects.filter(report=report).first()
-    
+
     criteria = Criterion.objects.all()
     results = {r.criterion_id: r for r in CriterionResult.objects.filter(review=review)} if review else {}
-    
+
     if request.method == 'POST':
         if review is None:
             assistant = (
-                Assistant.objects.filter(subgroup=student.subgroup).first()
-                or Assistant.objects.first()
+                    Assistant.objects.filter(subgroup=student.subgroup).first()
+                    or Assistant.objects.first()
             )
             review = ReportReview.objects.create(
                 report=report, assistant=assistant, comment='', reviewed_at=date.today()

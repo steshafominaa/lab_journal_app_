@@ -1,8 +1,11 @@
 # Небольшие фабрики для создания тестовых данных (пользователи, подгруппы и т.д.),
 # чтобы не дублировать одинаковую "обвязку" в каждом тесте.
+from datetime import date
+from decimal import Decimal
+
 from django.contrib.auth import get_user_model
 
-from core.models import Assistant, Profile, Student, Subgroup, Teacher
+from core.models import Assistant, LabReport, LaboratoryWork, Profile, Student, Subgroup, Teacher
 
 User = get_user_model()
 
@@ -48,3 +51,20 @@ def make_assistant(subgroup, email=None, **kwargs):
     user = make_user(email or _unique_email('assistant'), **kwargs)
     profile = Profile.objects.create(user=user, role='assistant')
     return Assistant.objects.create(profile=profile, subgroup=subgroup)
+
+def make_admin(email=None, **kwargs):
+    """Преподаватель с правами администратора."""
+    return make_teacher(email, is_admin=True, **kwargs)
+
+
+def make_lab_work(title=None, report_weight='0.5', defense_weight='0.5'):
+    _counter['n'] += 1
+    return LaboratoryWork.objects.create(
+        title=title or f"ЛР-{_counter['n']}",
+        report_deadline=date(2024, 1, 1), defense_deadline=date(2024, 2, 1),
+        report_weight=Decimal(report_weight), defense_weight=Decimal(defense_weight),
+    )
+
+
+def make_report(student, lab_work, submitted_at=None):
+    return LabReport.objects.create(student=student, lab_work=lab_work, submitted_at=submitted_at)

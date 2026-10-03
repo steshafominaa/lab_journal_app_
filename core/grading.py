@@ -11,7 +11,7 @@ from .models import (
 MAX_PENALTY_WEEKS = 4
 
 
-def _is_confirmed_sick_on(student, check_date):
+def is_confirmed_sick_on(student, check_date):
     # Проверяем, есть ли у студента подтверждённая справка, которая закрывает этот день.
     # Если да — этот день не считается опозданием.
     return SickLeave.objects.filter(
@@ -28,7 +28,7 @@ def _confirmed_sick_days_between(student, start_date, end_date):
     count = 0
     day = start_date + timedelta(days=1)
     while day <= end_date:
-        if _is_confirmed_sick_on(student, day):
+        if is_confirmed_sick_on(student, day):
             count += 1
         day += timedelta(days=1)
     return count
@@ -83,10 +83,6 @@ def compute_report_details(student, lab_work):
     return {'raw_score': raw_score, 'penalty': raw_score - final_score, 'final_score': final_score, 'penalty_weeks': weeks}
 
 
-def compute_report_score(student, lab_work):
-    return compute_report_details(student, lab_work)['final_score']
-
-
 def compute_defense_details(student, lab_work):
     """Возвращает баллы за защиту: выставленную оценку, штраф и итог с учётом штрафа."""
     defense = None
@@ -105,7 +101,7 @@ def compute_defense_details(student, lab_work):
     missed_weeks = 0
     check_date = deadline
     while check_date < cutoff:
-        if not _is_confirmed_sick_on(student, check_date):
+        if not is_confirmed_sick_on(student, check_date):
             missed_weeks += 1
         check_date += timedelta(days=7)
 
@@ -123,15 +119,11 @@ def compute_defense_details(student, lab_work):
     return {'raw_score': raw_score, 'penalty': raw_score - final_score, 'final_score': final_score, 'penalty_weeks': missed_weeks}
 
 
-def compute_defense_score(student, lab_work):
-    return compute_defense_details(student, lab_work)['final_score']
-
-
 def compute_lab_grade(student, lab_work):
     # Оценка за лабу = оценка за отчёт и оценка за защиту, каждая со своим весом
     # (веса задаются при создании лабораторной работы, report_weight + defense_weight = 1)
-    report_score = compute_report_score(student, lab_work)
-    defense_score = compute_defense_score(student, lab_work)
+    report_score = compute_report_details(student, lab_work)['final_score']
+    defense_score = compute_defense_details(student, lab_work)['final_score']
     lab_score = report_score * float(lab_work.report_weight) + defense_score * float(lab_work.defense_weight)
     return {
         'lab_work': lab_work,

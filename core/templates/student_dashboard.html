@@ -168,7 +168,7 @@
                     <form method="post" action="{% url 'set_auto_pass_agree' %}" class="d-inline">
                         {% csrf_token %}
                         <input type="hidden" name="agree" value="no">
-                        <button type="submit" class="btn btn-outline-secondary btn-sm">Нет, буду сдавать эк��амен</button>
+                        <button type="submit" class="btn btn-outline-secondary btn-sm">Нет, буду сдавать экзамен</button>
                     </form>
                 {% endif %}
             {% else %}
