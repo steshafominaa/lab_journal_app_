@@ -4,7 +4,12 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="3a5261b7-2585-4393-bc3c-1849f1231a86" name="Changes" comment="done" />
+    <list default="true" id="3a5261b7-2585-4393-bc3c-1849f1231a86" name="Changes" comment="done">
+      <change beforePath="$PROJECT_DIR$/media/sick_leaves/photo_2026-06-19_20-57-45.jpg" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/media/sick_leaves/spravka.jpg" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/media/sick_leaves/spravka_ta1C20o.jpg" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/media/sick_leaves/Справка_в_школу_о_болезни-min.jpg" beforeDir="false" />
+    </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
     <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
